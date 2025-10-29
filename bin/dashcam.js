@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import { program } from 'commander';
 import { auth } from '../lib/auth.js';
-import { startRecording, stopRecording, getRecordingStatus } from '../lib/recorder.js';
 import { upload } from '../lib/uploader.js';
 import { logger, setVerbose } from '../lib/logger.js';
 import { APP } from '../lib/config.js';
 import { createPattern } from '../lib/tracking.js';
-import { logsTrackerManager } from '../lib/logs/index.js';
+import { processManager } from '../lib/processManager.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import path from 'path';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +50,7 @@ program
       
       await auth.login(apiKey);
       console.log('Successfully authenticated with API key');
+      process.exit(0);
     } catch (error) {
       console.error('Authentication failed:', error.message);
       logger.error('Authentication failed with details:', {
@@ -67,6 +68,7 @@ program
     try {
       await auth.logout();
       console.log('Successfully logged out');
+      process.exit(0);
     } catch (error) {
       logger.error('Logout failed:', error);
       process.exit(1);
@@ -82,70 +84,102 @@ program
   .option('-t, --title <title>', 'Title for the recording')
   .option('-d, --description <description>', 'Description for the recording (supports markdown)')
   .option('-p, --project <project>', 'Project ID to upload the recording to')
+  .option('-b, --background', 'Run recording in background (allows use of stop command)')
   .action(async (options, command) => {
     try {
-      logger.verbose('Starting recording with options', { 
-        ...options,
-        globalOptions: command.parent.opts()
-      });
-      
+      // Check if recording is already active
+      if (processManager.isRecordingActive()) {
+        const status = processManager.getActiveStatus();
+        const duration = ((Date.now() - status.startTime) / 1000).toFixed(1);
+        console.log('Recording already in progress');
+        console.log(`Duration: ${duration} seconds`);
+        console.log(`PID: ${status.pid}`);
+        console.log('Use "dashcam stop" to stop the recording');
+        process.exit(0);
+      }
+
       // Check authentication
       if (!await auth.isAuthenticated()) {
         console.log('You need to login first. Run: dashcam login');
         process.exit(1);
       }
 
-      // Start recording
-      const { outputPath } = await startRecording({
-        fps: parseInt(options.fps),
-        includeAudio: options.audio,
-        customOutputPath: options.output
-      });
-
-      console.log('Recording started successfully');
-      console.log('Press Ctrl+C to stop recording');
-
-      // Handle graceful shutdown
-      let shutdownStarted = false;
-
-      async function handleShutdown() {
-        if (shutdownStarted) return;
-        shutdownStarted = true;
+      if (options.background) {
+        // Background mode - use process manager
+        console.log('Starting recording...');
         
-        console.log('\nStopping recording...');
         try {
-          const result = await stopRecording();
-          console.log('Recording saved:', result.outputPath);
-          console.log('Duration:', (result.duration / 1000).toFixed(1), 'seconds');
-          console.log('File size:', (result.fileSize / (1024 * 1024)).toFixed(2), 'MB');
-          
-          console.log('Uploading assets...');
-          const uploadResult = await upload(result.outputPath, {
+          const result = await processManager.startRecording({
+            fps: parseInt(options.fps) || 30,
+            audio: options.audio,
+            output: options.output,
             title: options.title,
             description: options.description,
-            project: options.project,
-            duration: result.duration,
-            clientStartDate: result.clientStartDate,
-            apps: result.apps, // Include tracked applications
-            icons: result.icons, // Include application icons metadata
-            gifPath: result.gifPath,
-            snapshotPath: result.snapshotPath
+            project: options.project
           });
-          console.log('Upload complete!');
-          console.log('Share link:', uploadResult.shareLink);
+
+          console.log(`Recording started successfully (PID: ${result.pid})`);
+          console.log(`Output: ${result.outputPath}`);
+          console.log('Use "dashcam status" to check progress');
+          console.log('Use "dashcam stop" to stop recording');
           
           process.exit(0);
         } catch (error) {
-          logger.error('Error stopping recording:', error);
+          console.error('Failed to start recording:', error.message);
+          process.exit(1);
+        }
+      } else {
+        // Foreground mode - direct recording
+        console.log('Starting recording...');
+        
+        // Import and start recording directly in this process
+        const { startRecording } = await import('../lib/recorder.js');
+        
+        try {
+          const result = await startRecording({
+            fps: parseInt(options.fps) || 30,
+            includeAudio: options.audio,
+            customOutputPath: options.output
+          });
+
+          console.log('Recording started successfully');
+          console.log('Press Ctrl+C to stop recording');
+          
+          // Keep process alive until stopped
+          process.on('SIGINT', async () => {
+            console.log('\nStopping recording...');
+            const { stopRecording } = await import('../lib/recorder.js');
+            try {
+              const stopResult = await stopRecording();
+              console.log('Recording stopped and saved:', stopResult.outputPath);
+              
+              // Upload the recording
+              if (options.project) {
+                console.log('Uploading recording...');
+                await upload(stopResult.outputPath, {
+                  title: options.title,
+                  description: options.description,
+                  project: options.project
+                });
+                console.log('Upload completed successfully!');
+              }
+            } catch (error) {
+              console.error('Error stopping recording:', error.message);
+            }
+            process.exit(0);
+          });
+
+          // Keep the process alive
+          setInterval(() => {}, 1000);
+          
+        } catch (error) {
+          console.error('Failed to start recording:', error.message);
           process.exit(1);
         }
       }
-
-      process.on('SIGINT', handleShutdown);
-      process.on('SIGTERM', handleShutdown);
-
     } catch (error) {
-      logger.error('Recording failed:', error);
+      logger.error('Failed to start recording:', error);
+      console.error('Failed to start recording:', error.message);
       process.exit(1);
     }
   });
@@ -154,15 +188,23 @@ program
   .command('status')
   .description('Show current recording status')
   .action(() => {
-    const status = getRecordingStatus();
-    if (status.isRecording) {
+    const activeStatus = processManager.getActiveStatus();
+    if (activeStatus) {
+      const duration = ((Date.now() - activeStatus.startTime) / 1000).toFixed(1);
       console.log('Recording in progress');
-      console.log('Duration:', (status.duration / 1000).toFixed(1), 'seconds');
-      console.log('Output path:', status.outputPath);
+      console.log(`Duration: ${duration} seconds`);
+      console.log(`PID: ${activeStatus.pid}`);
+      console.log(`Started: ${new Date(activeStatus.startTime).toLocaleString()}`);
+      if (activeStatus.options.title) {
+        console.log(`Title: ${activeStatus.options.title}`);
+      }
     } else {
       console.log('No active recording');
     }
+    process.exit(0);
   });
+
+
 
 program
   .command('track')
@@ -210,95 +252,205 @@ program
 
 program
   .command('stop')
-  .description('Stop the current recording and upload it')
-  .option('-t, --title <title>', 'Title for the recording')
-  .option('-d, --description <description>', 'Description for the recording (supports markdown)')
-  .option('-p, --project <project>', 'Project ID to upload the recording to')
-  .action(async (options, command) => {
+  .description('Stop the current recording and wait for upload completion')
+  .action(async () => {
     try {
-      logger.verbose('Stopping recording with options', { 
-        ...options,
-        globalOptions: command.parent.opts()
-      });
+      // Enable verbose logging for stop command
+      setVerbose(true);
       
-      console.log('Stopping recording...');
-      const result = await stopRecording();
-      console.log('Recording saved:', result.outputPath);
-      console.log('Duration:', (result.duration / 1000).toFixed(1), 'seconds');
-      console.log('File size:', (result.fileSize / (1024 * 1024)).toFixed(2), 'MB');
-      console.log('Generated GIF:', result.gifPath);
-      console.log('Generated snapshot:', result.snapshotPath);
-      
-      console.log('Uploading assets...');
-      const uploadResult = await upload(result.outputPath, {
-        title: options.title,
-        description: options.description,
-        project: options.project,
-        duration: result.duration,
-        clientStartDate: result.clientStartDate,
-        gifPath: result.gifPath,
-        snapshotPath: result.snapshotPath
-      });
-      console.log('Upload complete!');
-      console.log('Share link:', uploadResult.shareLink);
-    } catch (error) {
-      if (error.message === 'No recording in progress') {
-        console.error('No recording is currently in progress');
-      } else {
-        logger.error('Error stopping recording:', error);
+      if (!processManager.isRecordingActive()) {
+        console.log('No active recording to stop');
+        process.exit(0);
       }
+
+      const activeStatus = processManager.getActiveStatus();
+      const logFile = path.join(process.cwd(), '.dashcam', 'recording.log');
+
+      console.log('Stopping recording...');
+      
+      try {
+        const result = await processManager.stopActiveRecording();
+        
+        if (!result) {
+          console.log('Failed to stop recording');
+          process.exit(1);
+        }
+
+        console.log('Recording stopped successfully');
+        console.log('Output saved to:', result.outputPath);
+        
+        // Handle upload if there was an active project configuration
+        if (activeStatus?.options?.project) {
+          console.log('Uploading recording...');
+          const uploadResult = await upload(result.outputPath, {
+            title: activeStatus.options.title,
+            description: activeStatus.options.description,
+            project: activeStatus.options.project,
+            duration: result.duration,
+            clientStartDate: result.clientStartDate,
+            apps: result.apps,
+            icons: result.icons,
+            gifPath: result.gifPath,
+            snapshotPath: result.snapshotPath
+          });
+          
+          console.log('✅ Upload complete! Share link:', uploadResult.shareLink);
+        } else {
+          console.log('✅ Recording completed successfully!');
+        }
+      } catch (error) {
+        console.error('Failed to stop recording:', error.message);
+        process.exit(1);
+      }
+      
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error stopping recording:', error);
+      console.error('Failed to stop recording:', error.message);
       process.exit(1);
     }
   });
 
 program
   .command('logs')
-  .description('Manage log file tracking for recordings')
-  .option('--add <file>', 'Add a log file to track during recordings')
-  .option('--remove <file>', 'Remove a log file from tracking')
-  .option('--list', 'List currently tracked log files')
+  .description('Manage log tracking for recordings')
+  .option('--add', 'Add a new log tracker')
+  .option('--remove <id>', 'Remove a log tracker by ID')
+  .option('--list', 'List all configured log trackers')
   .option('--status', 'Show log tracking status')
+  .option('--name <name>', 'Name for the log tracker (required with --add)')
+  .option('--type <type>', 'Type of tracker: "web" or "file" (required with --add)')
+  .option('--pattern <pattern>', 'Pattern to track (can be used multiple times)', (value, previous) => {
+    return previous ? previous.concat([value]) : [value];
+  })
+  .option('--file <file>', 'File path for file type trackers')
   .action(async (options) => {
     try {
+      // Import logsTrackerManager only when needed to avoid unwanted initialization
+      const { logsTrackerManager } = await import('../lib/logs/index.js');
+      
       if (options.add) {
-        if (!fs.existsSync(options.add)) {
-          console.error('Log file does not exist:', options.add);
+        // Validate required options for add
+        if (!options.name) {
+          console.error('Error: --name is required when adding a tracker');
+          console.log('Example: dashcam logs --add --name=social --type=web --pattern="*facebook.com*"');
           process.exit(1);
         }
-        logsTrackerManager.addCliLogFile(options.add);
-        console.log('Added log file to tracking:', options.add);
+        if (!options.type) {
+          console.error('Error: --type is required when adding a tracker (web or file)');
+          process.exit(1);
+        }
+        if (options.type !== 'web' && options.type !== 'file') {
+          console.error('Error: --type must be either "web" or "file"');
+          process.exit(1);
+        }
+
+        if (options.type === 'web') {
+          if (!options.pattern || options.pattern.length === 0) {
+            console.error('Error: At least one --pattern is required for web trackers');
+            console.log('Example: dashcam logs --add --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"');
+            process.exit(1);
+          }
+          
+          const webConfig = {
+            id: options.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            name: options.name,
+            type: 'web',
+            enabled: true,
+            patterns: options.pattern
+          };
+          
+          logsTrackerManager.addWebTracker(webConfig);
+          console.log(`Added web tracker "${options.name}" with patterns:`, options.pattern);
+        } else if (options.type === 'file') {
+          if (!options.file) {
+            console.error('Error: --file is required for file trackers');
+            console.log('Example: dashcam logs --add --name=app-logs --type=file --file=/var/log/app.log');
+            process.exit(1);
+          }
+          if (!fs.existsSync(options.file)) {
+            console.error('Log file does not exist:', options.file);
+            process.exit(1);
+          }
+          
+          logsTrackerManager.addCliLogFile(options.file);
+          console.log(`Added file tracker "${options.name}" for:`, options.file);
+        }
       } else if (options.remove) {
-        logsTrackerManager.removeCliLogFile(options.remove);
-        console.log('Removed log file from tracking:', options.remove);
+        logsTrackerManager.removeTracker(options.remove);
+        console.log('Removed tracker:', options.remove);
       } else if (options.list) {
         const status = logsTrackerManager.getStatus();
-        console.log('Currently tracked log files:');
-        if (status.cliFilesCount === 0) {
-          console.log('  (none)');
-        } else {
-          console.log(`  ${status.cliFilesCount} files configured for tracking`);
-          // TODO: Show actual file paths when we store them in the manager
+        console.log('Currently configured trackers:');
+        
+        if (status.cliFiles.length > 0) {
+          console.log('\nFile trackers:');
+          status.cliFiles.forEach((filePath, index) => {
+            console.log(`  file-${index + 1}: ${filePath}`);
+          });
+        }
+        
+        if (status.webApps.length > 0) {
+          console.log('\nWeb trackers:');
+          status.webApps.forEach(app => {
+            console.log(`  ${app.id}: ${app.name}`);
+            console.log(`    Patterns: ${app.patterns.join(', ')}`);
+          });
+        }
+        
+        if (status.cliFiles.length === 0 && status.webApps.length === 0) {
+          console.log('  (none configured)');
+          console.log('\nExamples:');
+          console.log('  dashcam logs --add --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"');
+          console.log('  dashcam logs --add --name=app-logs --type=file --file=/var/log/app.log');
         }
       } else if (options.status) {
         const status = logsTrackerManager.getStatus();
         console.log('Log tracking status:');
         console.log(`  Active recording instances: ${status.activeInstances}`);
-        console.log(`  Configured CLI log files: ${status.cliFilesCount}`);
+        console.log(`  File trackers: ${status.cliFilesCount}`);
+        console.log(`  Web trackers: ${status.webAppsCount}`);
         console.log(`  Total recent events: ${status.totalEvents}`);
         
         if (status.fileTrackerStats.length > 0) {
-          console.log('  File tracker details:');
+          console.log('\n  File tracker activity (last minute):');
           status.fileTrackerStats.forEach(stat => {
-            console.log(`    ${stat.filePath}: ${stat.count} events (last minute)`);
+            console.log(`    ${stat.filePath}: ${stat.count} events`);
           });
         }
       } else {
         console.log('Please specify an action: --add, --remove, --list, or --status');
-        console.log('Use "dashcam logs --help" for more information');
+        console.log('\nExamples:');
+        console.log('  dashcam logs --add --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"');
+        console.log('  dashcam logs --add --name=app-logs --type=file --file=/var/log/app.log');
+        console.log('  dashcam logs --list');
+        console.log('  dashcam logs --status');
+        console.log('\nUse "dashcam logs --help" for more information');
       }
+      
+      // Exit successfully to prevent hanging
+      process.exit(0);
     } catch (error) {
       logger.error('Error managing logs:', error);
       console.error('Failed to manage logs:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Internal command for web logs daemon
+program
+  .command('_internal_daemon')
+  .description('Internal command for web logs daemon - do not use directly')
+  .action(async () => {
+    try {
+      const { WebLogsDaemon } = await import('../lib/webLogsDaemon.js');
+      const daemon = new WebLogsDaemon();
+      await daemon.start();
+      
+      // Keep process alive
+      await new Promise(() => {});
+    } catch (error) {
+      logger.error('Daemon failed:', error);
       process.exit(1);
     }
   });

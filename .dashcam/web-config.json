@@ -1,0 +1,11 @@
+{
+  "testdriver-tracking": {
+    "id": "testdriver-tracking",
+    "name": "testdriver-tracking",
+    "type": "web",
+    "enabled": true,
+    "patterns": [
+      "*testdriver.ai*"
+    ]
+  }
+}

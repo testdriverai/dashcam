@@ -1,0 +1,135 @@
+23:53:59.852 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+23:53:59.940 [[32minfo[39m] Generated temp file path
+23:53:59.941 [[32minfo[39m] Wrote temp file info to disk
+23:53:59.941 [[32minfo[39m] Starting recording with options:
+23:53:59.961 [[32minfo[39m] FFmpeg process spawned
+Background recording started
+Background recording started
+23:53:59.987 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+23:53:59.987 [[32minfo[39m] Started new logs tracker instance
+23:53:59.988 [[32minfo[39m] Recording process started successfully
+23:53:59.988 [[32minfo[39m] Background recording signal handlers registered
+23:53:59.995 [[32minfo[39m] FFmpeg output: ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers
+  built with Apple clang version 13.1.6 (clang-1316.0.21.2.5)
+  configuration: --prefix=/Volumes/tempdisk/sw --extra-cflags=-fno-stack-check --arch=arm64 --cc=/usr/bin/clang --enable-gpl --enable-libvmaf --enable-libbluray --enable-libopenjpeg --enable-libopus --enable-libmp3lame --enable-libx264 --enable-libx265 --enable-libvpx --enable-libwebp --enable-libass --enable-libfreetype --enable-fontconfig --enable-libtheora --enable-libvorbis --enable-libsnappy --enable-libaom --enable-libvidstab --enable-libzimg --enable-libsvtav1 --enable-libkvazaar --enable-version3 --pkg-config-flags=--static --enable-ffplay --enable-postproc --enable-nonfree --enable-neon --enable-runtime-cpudetect --disable-indev=qtkit --disable-indev=x11grab_xcb
+  libavutil      58.  2.100 / 58.  2.100
+  libavcodec     60.  3.100 / 60.  3.100
+  libavformat    60.  3.100 / 60.  3.100
+  libavdevice    60.  1.100 / 60.  1.100
+  libavfilter     9.  3.100 /  9.  3.100
+  libswscale      7.  1.100 /  7.  1.100
+  libswresample   4. 10.100 /  4. 10.100
+  libpostproc    57.  1.100 / 57.  1.100
+23:54:00.583 [[32minfo[39m] FFmpeg output: objc[43042]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[43042]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[43042]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+[AVFoundation indev @ 0x15bf04e90] Configuration of video device failed, falling back to default.
+23:54:00.584 [[31merror[39m] PERMISSION ISSUE DETECTED: Screen recording failed. This happens because the Node.js subprocess doesn't inherit VS Code's screen recording permissions.
+23:54:00.585 [[31merror[39m] SOLUTION: Add Node.js to screen recording permissions:
+23:54:00.585 [[31merror[39m] 1. Open System Preferences > Security & Privacy > Privacy > Screen Recording
+23:54:00.585 [[31merror[39m] 2. Click the lock to unlock
+23:54:00.585 [[31merror[39m] 3. Click the + button and add: /usr/local/bin/node (or your Node.js installation path)
+23:54:00.585 [[31merror[39m] 4. Alternatively, find node with: which node
+23:54:00.585 [[31merror[39m] 5. Restart the terminal after adding permissions
+23:54:02.962 [[33mwarn[39m] Temp file not created yet
+23:54:05.323 [[32minfo[39m] === STOP SIGNAL FILE DETECTED ===
+23:54:05.324 [[32minfo[39m] === SHUTDOWN SIGNAL RECEIVED ===
+Stopping background recording...
+23:54:05.325 [[32minfo[39m] Background recording shutdown initiated
+23:54:05.325 [[32minfo[39m] Stopping recording
+23:54:11.594 [[32minfo[39m] Looking for temp file
+DEBUG: Looking for temp file {
+  inMemory: '/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761713639939.webm',
+  infoFileExists: true,
+  infoPath: '/Users/ianjennings/Development/dashcam-cli-minimal/.dashcam/temp-file.json'
+}
+23:54:11.601 [[32minfo[39m] Debug: temp file check
+23:54:11.606 [[32minfo[39m] Enhanced application tracking stopped
+23:54:11.608 [[31merror[39m] Error in background recording: Recording file is empty or missing
+Error in background recording: Recording file is empty or missing
+23:54:11.608 [[32minfo[39m] Cleaning up background recording process
+23:54:36.456 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+23:54:36.554 [[32minfo[39m] Generated temp file path
+23:54:36.555 [[32minfo[39m] Wrote temp file info to disk
+23:54:36.555 [[32minfo[39m] Starting recording with options:
+23:54:36.578 [[32minfo[39m] FFmpeg process spawned
+Background recording started
+Background recording started
+23:54:36.660 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+23:54:36.661 [[32minfo[39m] Started new logs tracker instance
+23:54:36.661 [[32minfo[39m] Recording process started successfully
+23:54:36.661 [[32minfo[39m] Background recording signal handlers registered
+23:54:36.673 [[32minfo[39m] FFmpeg output: ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers
+  built with Apple clang version 13.1.6 (clang-1316.0.21.2.5)
+  configuration: --prefix=/Volumes/tempdisk/sw --extra-cflags=-fno-stack-check --arch=arm64 --cc=/usr/bin/clang --enable-gpl --enable-libvmaf --enable-libbluray --enable-libopenjpeg --enable-libopus --enable-libmp3lame --enable-libx264 --enable-libx265 --enable-libvpx --enable-libwebp --enable-libass --enable-libfreetype --enable-fontconfig --enable-libtheora --enable-libvorbis --enable-libsnappy --enable-libaom --enable-libvidstab --enable-libzimg --enable-libsvtav1 --enable-libkvazaar --enable-version3 --pkg-config-flags=--static --enable-ffplay --enable-postproc --enable-nonfree --enable-neon --enable-runtime-cpudetect --disable-indev=qtkit --disable-indev=x11grab_xcb
+  libavutil      58.  2.100 / 58.  2.100
+  libavcodec     60.  3.100 / 60.  3.100
+  libavformat    60.  3.100 / 60.  3.100
+  libavdevice    60.  1.100 / 60.  1.100
+  libavfilter     9.  3.100 /  9.  3.100
+  libswscale      7.  1.100 /  7.  1.100
+  libswresample   4. 10.100 /  4. 10.100
+  libpostproc    57.  1.100 / 57.  1.100
+23:54:37.202 [[32minfo[39m] FFmpeg output: objc[43240]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[43240]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[43240]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+[AVFoundation indev @ 0x150904880] Configuration of video device failed, falling back to default.
+23:54:37.203 [[31merror[39m] PERMISSION ISSUE DETECTED: Screen recording failed. This happens because the Node.js subprocess doesn't inherit VS Code's screen recording permissions.
+23:54:37.204 [[31merror[39m] SOLUTION: Add Node.js to screen recording permissions:
+23:54:37.205 [[31merror[39m] 1. Open System Preferences > Security & Privacy > Privacy > Screen Recording
+23:54:37.205 [[31merror[39m] 2. Click the lock to unlock
+23:54:37.205 [[31merror[39m] 3. Click the + button and add: /usr/local/bin/node (or your Node.js installation path)
+23:54:37.205 [[31merror[39m] 4. Alternatively, find node with: which node
+23:54:37.240 [[31merror[39m] 5. Restart the terminal after adding permissions
+23:54:39.580 [[33mwarn[39m] Temp file not created yet
+23:55:03.729 [[33mwarn[39m] Failed to get active window
+23:55:07.654 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+23:55:07.783 [[32minfo[39m] Generated temp file path
+23:55:07.783 [[32minfo[39m] Wrote temp file info to disk
+23:55:07.784 [[32minfo[39m] Starting recording with options:
+23:55:07.801 [[32minfo[39m] FFmpeg process spawned
+Background recording started
+Background recording started
+23:55:07.825 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+23:55:07.825 [[32minfo[39m] Started new logs tracker instance
+23:55:07.825 [[32minfo[39m] Recording process started successfully
+23:55:07.826 [[32minfo[39m] Background recording signal handlers registered
+23:55:07.835 [[32minfo[39m] FFmpeg output: ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers
+  built with Apple clang version 13.1.6 (clang-1316.0.21.2.5)
+  configuration: --prefix=/Volumes/tempdisk/sw --extra-cflags=-fno-stack-check --arch=arm64 --cc=/usr/bin/clang --enable-gpl --enable-libvmaf --enable-libbluray --enable-libopenjpeg --enable-libopus --enable-libmp3lame --enable-libx264 --enable-libx265 --enable-libvpx --enable-libwebp --enable-libass --enable-libfreetype --enable-fontconfig --enable-libtheora --enable-libvorbis --enable-libsnappy --enable-libaom --enable-libvidstab --enable-libzimg --enable-libsvtav1 --enable-libkvazaar --enable-version3 --pkg-config-flags=--static --enable-ffplay --enable-postproc --enable-nonfree --enable-neon --enable-runtime-cpudetect --disable-indev=qtkit --disable-indev=x11grab_xcb
+  libavutil      58.  2.100 / 58.  2.100
+  libavcodec     60.  3.100 / 60.  3.100
+  libavformat    60.  3.100 / 60.  3.100
+  libavdevice    60.  1.100 / 60.  1.100
+  libavfilter     9.  3.100 /  9.  3.100
+  libswscale      7.  1.100 /  7.  1.100
+  libswresample   4. 10.100 /  4. 10.100
+  libpostproc    57.  1.100 / 57.  1.100
+23:55:08.365 [[32minfo[39m] FFmpeg output: objc[43507]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+23:55:08.367 [[32minfo[39m] FFmpeg output: objc[43507]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[43507]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+[AVFoundation indev @ 0x1522047a0] Configuration of video device failed, falling back to default.
+23:55:08.367 [[31merror[39m] PERMISSION ISSUE DETECTED: Screen recording failed. This happens because the Node.js subprocess doesn't inherit VS Code's screen recording permissions.
+23:55:08.367 [[31merror[39m] SOLUTION: Add Node.js to screen recording permissions:
+23:55:08.367 [[31merror[39m] 1. Open System Preferences > Security & Privacy > Privacy > Screen Recording
+23:55:08.368 [[31merror[39m] 2. Click the lock to unlock
+23:55:08.368 [[31merror[39m] 3. Click the + button and add: /usr/local/bin/node (or your Node.js installation path)
+23:55:08.368 [[31merror[39m] 4. Alternatively, find node with: which node
+23:55:08.368 [[31merror[39m] 5. Restart the terminal after adding permissions
+23:55:10.803 [[33mwarn[39m] Temp file not created yet
+23:55:17.645 [[32minfo[39m] === STOP SIGNAL FILE DETECTED ===
+23:55:17.646 [[32minfo[39m] === SHUTDOWN SIGNAL RECEIVED ===
+Stopping background recording...
+23:55:17.647 [[32minfo[39m] Background recording shutdown initiated
+23:55:17.648 [[32minfo[39m] Stopping recording
+23:55:23.673 [[32minfo[39m] Looking for temp file
+DEBUG: Looking for temp file {
+  inMemory: '/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761713707782.webm',
+  infoFileExists: true,
+  infoPath: '/Users/ianjennings/Development/dashcam-cli-minimal/.dashcam/temp-file.json'
+}
+23:55:23.676 [[32minfo[39m] Debug: temp file check
+23:55:23.678 [[32minfo[39m] Enhanced application tracking stopped
+23:55:23.679 [[31merror[39m] Error in background recording: Recording file is empty or missing
+Error in background recording: Recording file is empty or missing
+23:55:23.680 [[32minfo[39m] Cleaning up background recording process

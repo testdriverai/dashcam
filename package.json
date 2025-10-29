@@ -21,10 +21,12 @@
     "file-icon": "^6.0.0",
     "get-windows": "^9.2.3",
     "got": "^11.8.6",
+    "mask-sensitive-data": "^0.11.5",
     "node-fetch": "^2.7.0",
     "open": "^9.1.0",
     "tail": "^2.2.6",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "ws": "^8.18.3"
   },
   "type": "module",
   "engines": {
