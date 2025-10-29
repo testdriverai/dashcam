@@ -1,0 +1,814 @@
+02:23:44.886 [[32minfo[39m] Verbose logging enabled
+Starting recording...
+02:23:44.983 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+02:23:44.987 [[34mdebug[39m] IconCache initialized
+  {
+    "folderPath": "/var/folders/7s/2nhyb0rj2bs_rkswlgqnnhdm0000gn/T/dashcam-cli-icons",
+    "cachedIcons": 2
+  }
+02:23:44.988 [[32minfo[39m] Starting recording directly
+  {
+    "options": {
+      "fps": 30,
+      "includeAudio": false,
+      "customOutputPath": null
+    }
+  }
+02:23:44.988 [[34mdebug[39m] → Entering generateOutputPath
+  {
+    "args": {}
+  }
+02:23:44.988 [[34mdebug[39m] [VERBOSE] Generating output path
+  {
+    "directory": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings",
+    "filepath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+    "directoryExists": true
+  }
+02:23:44.989 [[34mdebug[39m] Created recordings directory
+  {
+    "directory": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings"
+  }
+02:23:44.989 [[34mdebug[39m] ← Exiting generateOutputPath
+  {
+    "result": "undefined"
+  }
+02:23:44.989 [[34mdebug[39m] → Entering getPlatformArgs
+  {
+    "args": {
+      "fps": 30,
+      "includeAudio": false
+    }
+  }
+02:23:44.989 [[34mdebug[39m] → Entering detectPrimaryScreenDevice
+  {
+    "args": {}
+  }
+02:23:45.238 [[34mdebug[39m] AVFoundation device list output:
+  {
+    "totalLines": 21
+  }
+02:23:45.239 [[34mdebug[39m] Found screen capture device:
+  {
+    "deviceIndex": 2,
+    "screenNumber": 0
+  }
+02:23:45.239 [[32minfo[39m] Detected primary screen device:
+  {
+    "deviceIndex": 2,
+    "screenNumber": 0,
+    "screenInput": "2:none",
+    "totalScreenDevices": 1
+  }
+02:23:45.239 [[34mdebug[39m] ← Exiting detectPrimaryScreenDevice
+  {
+    "result": "undefined"
+  }
+02:23:45.239 [[34mdebug[39m] [VERBOSE] Using platform configuration
+  {
+    "platform": "darwin",
+    "config": {
+      "inputFormat": "avfoundation",
+      "screenInput": "2:none",
+      "audioInput": "0"
+    }
+  }
+02:23:45.239 [[34mdebug[39m] FFmpeg capture command:
+  {
+    "args": "-f avfoundation -video_size 1920x1080 -pixel_format uyvy422 -r 30 -framerate 30 -i 2:none"
+  }
+02:23:45.240 [[34mdebug[39m] [VERBOSE] Platform-specific arguments added
+  {
+    "totalArgs": 12,
+    "includeAudio": false,
+    "fps": 30,
+    "screenInput": "2:none"
+  }
+02:23:45.240 [[34mdebug[39m] ← Exiting getPlatformArgs
+  {
+    "result": "undefined"
+  }
+02:23:45.240 [[32minfo[39m] Generated temp file path
+  {
+    "tempFile": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm",
+    "tempDir": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings"
+  }
+02:23:45.240 [[32minfo[39m] Wrote temp file info to disk
+  {
+    "path": "/Users/ianjennings/Development/dashcam-cli-minimal/.dashcam/temp-file.json",
+    "tempFileInfo": {
+      "tempFile": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm",
+      "outputPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+      "startTime": 1761722625240
+    }
+  }
+02:23:45.240 [[32minfo[39m] Starting recording with options:
+  {
+    "fps": 30,
+    "includeAudio": false,
+    "platform": "darwin",
+    "outputPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+    "tempFile": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm"
+  }
+02:23:45.240 [[34mdebug[39m] [VERBOSE] FFmpeg command details
+  {
+    "ffmpegPath": "/Users/ianjennings/Development/dashcam-cli-minimal/node_modules/ffmpeg-static/ffmpeg",
+    "totalArgs": 28,
+    "outputArgs": "-c:v libvpx -b:v 1M -r 30 -g 30 -f webm -flush_packets 1 -max_muxing_queue_size 1024",
+    "platformArgs": "-f avfoundation -video_size 1920x1080 -pixel_format uyvy422 -r 30 -framerate 30 -i 2:none"
+  }
+02:23:45.240 [[35msilly[39m] [TRACE] Full FFmpeg command
+  {
+    "command": "/Users/ianjennings/Development/dashcam-cli-minimal/node_modules/ffmpeg-static/ffmpeg -f avfoundation -video_size 1920x1080 -pixel_format uyvy422 -r 30 -framerate 30 -i 2:none -c:v libvpx -b:v 1M -r 30 -g 30 -f webm -flush_packets 1 -max_muxing_queue_size 1024 -y /Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm"
+  }
+02:23:45.240 [[34mdebug[39m] Spawning FFmpeg process...
+02:23:45.243 [[32minfo[39m] FFmpeg process spawned
+  {
+    "pid": 12173,
+    "args": [
+      "1",
+      "-max_muxing_queue_size",
+      "1024",
+      "-y",
+      "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm"
+    ],
+    "tempFile": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm"
+  }
+02:23:45.243 [[34mdebug[39m] Starting application tracking...
+02:23:45.250 [[34mdebug[39m] → Entering ApplicationTracker.start
+  {
+    "args": {}
+  }
+02:23:45.250 [[34mdebug[39m] Starting enhanced application tracking
+  {
+    "trackingDir": "/var/folders/7s/2nhyb0rj2bs_rkswlgqnnhdm0000gn/T/dashcam-cli-tracking",
+    "logFile": "/var/folders/7s/2nhyb0rj2bs_rkswlgqnnhdm0000gn/T/dashcam-cli-tracking/active-win.jsonl"
+  }
+02:23:45.250 [[34mdebug[39m] ← Exiting ApplicationTracker.start
+  {
+    "result": "undefined"
+  }
+02:23:45.250 [[34mdebug[39m] Starting log tracking...
+  {
+    "recorderId": "recording-2025-10-29T07-23-44-988Z"
+  }
+02:23:45.250 [[34mdebug[39m] LogsTrackerManager: Starting new logs tracker instance
+  {
+    "recorderId": "recording-2025-10-29T07-23-44-988Z",
+    "screenId": "1",
+    "directory": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings"
+  }
+02:23:45.250 [[34mdebug[39m] LogsTrackerManager: Ensuring web daemon is running...
+02:23:45.250 [[34mdebug[39m] Checking if daemon process is still running...
+  {
+    "pid": 6719
+  }
+02:23:45.251 [[34mdebug[39m] Daemon process not running or not accessible
+  {
+    "error": "kill ESRCH"
+  }
+02:23:45.251 [[32minfo[39m] Web logs daemon not running, starting it...
+02:23:45.251 [[34mdebug[39m] Spawned daemon process
+  {
+    "pid": 12176
+  }
+02:23:45.251 [[34mdebug[39m] Waiting for daemon to start...
+02:23:46.364 [[35msilly[39m] Icon already cached
+  {
+    "name": "code"
+  }
+02:23:46.365 [[35msilly[39m] Tracked active window with icon extraction
+  {
+    "app": "code",
+    "title": "server.js — dashcam-cli-minimal (Workspace)",
+    "hasId": true
+  }
+02:23:46.365 [[34mdebug[39m] Checking if daemon process is still running...
+  {
+    "pid": 12176
+  }
+02:23:46.365 [[34mdebug[39m] Daemon process is running
+  {
+    "pid": 12176
+  }
+02:23:46.365 [[32minfo[39m] Web logs daemon started successfully
+02:23:46.365 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+02:23:46.365 [[32minfo[39m] Started new logs tracker instance
+  {
+    "recorderId": "recording-2025-10-29T07-23-44-988Z",
+    "screenId": "1",
+    "directory": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings"
+  }
+02:23:46.365 [[32minfo[39m] Recording process started successfully
+  {
+    "pid": 12173,
+    "startTime": 1761722625243
+  }
+02:23:46.366 [[32minfo[39m] Recording started successfully
+  {
+    "outputPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+    "startTime": 1761722625243
+  }
+Recording started successfully (PID: 12170)
+Output: /Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm
+Use "dashcam status" to check progress
+Use "dashcam stop" to stop recording and upload
+Recording is running in background...
+02:23:46.366 [[32minfo[39m] FFmpeg output: 2025-10-29 02:23:46.249 ffmpeg[12173:76141] WARNING: AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras. Please use AVCaptureDeviceTypeContinuityCamera and add NSCameraUseContinuityCameraDeviceType to your Info.plist.
+objc[12173]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[12173]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[12173]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+[AVFoundation indev @ 0x14a0048d0] Configuration of video device failed, falling back to default.
+02:23:46.366 [[31merror[39m] PERMISSION ISSUE DETECTED: Screen recording failed. This happens because the Node.js subprocess doesn't inherit VS Code's screen recording permissions.
+02:23:46.366 [[31merror[39m] SOLUTION: Add Node.js to screen recording permissions:
+02:23:46.366 [[31merror[39m] 1. Open System Preferences > Security & Privacy > Privacy > Screen Recording
+02:23:46.366 [[31merror[39m] 2. Click the lock to unlock
+02:23:46.366 [[31merror[39m] 3. Click the + button and add: /usr/local/bin/node (or your Node.js installation path)
+02:23:46.366 [[31merror[39m] 4. Alternatively, find node with: which node
+02:23:46.367 [[31merror[39m] 5. Restart the terminal after adding permissions
+02:23:46.367 [[34mdebug[39m] FFmpeg: 2025-10-29 02:23:46.249 ffmpeg[12173:76141] WARNING: AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras. Please use AVCaptureDeviceTypeContinuityCamera and add NSCameraUseContinuityCameraDeviceType to your Info.plist.
+objc[12173]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[12173]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+objc[12173]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+[AVFoundation indev @ 0x14a0048d0] Configuration of video device failed, falling back to default.
+02:23:46.602 [[32minfo[39m] FFmpeg output: [avfoundation @ 0x14a004600] Stream #0: not enough frames to estimate rate; consider increasing probesize
+02:23:46.602 [[34mdebug[39m] FFmpeg: [avfoundation @ 0x14a004600] Stream #0: not enough frames to estimate rate; consider increasing probesize
+02:23:46.603 [[32minfo[39m] FFmpeg output: Input #0, avfoundation, from '2:none':
+  Duration: N/A, start: 2406.551500, bitrate: N/A
+  Stream #0:0: Video: rawvideo (UYVY / 0x59565955), uyvy422, 3456x2234, 1000k tbr, 1000k tbn
+02:23:46.603 [[34mdebug[39m] FFmpeg: Input #0, avfoundation, from '2:none':
+  Duration: N/A, start: 2406.551500, bitrate: N/A
+  Stream #0:0: Video: rawvideo (UYVY / 0x59565955), uyvy422, 3456x2234, 1000k tbr, 1000k tbn
+02:23:46.604 [[32minfo[39m] FFmpeg output: Stream mapping:
+  Stream #0:0 -> #0:0
+02:23:46.604 [[34mdebug[39m] FFmpeg: Stream mapping:
+  Stream #0:0 -> #0:0
+02:23:46.605 [[32minfo[39m] FFmpeg output: (rawvideo (native) -> vp8 (libvpx))
+Press [q] to stop, [?] for help
+02:23:46.605 [[34mdebug[39m] FFmpeg: (rawvideo (native) -> vp8 (libvpx))
+Press [q] to stop, [?] for help
+02:23:46.616 [[32minfo[39m] FFmpeg output: [libvpx @ 0x14a2673b0] v1.12.0-251-g7a8052ccd
+02:23:46.616 [[34mdebug[39m] FFmpeg: [libvpx @ 0x14a2673b0] v1.12.0-251-g7a8052ccd
+02:23:46.674 [[32minfo[39m] FFmpeg output: Output #0, webm, to '/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm':
+  Metadata:
+    encoder         : Lavf60.3.100
+02:23:46.674 [[34mdebug[39m] FFmpeg: Output #0, webm, to '/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm':
+  Metadata:
+    encoder         : Lavf60.3.100
+02:23:46.674 [[32minfo[39m] FFmpeg output: Stream #0:0: Video: vp8, yuv420p(tv, progressive), 3456x2234, q=2-31, 1000 kb/s, 30 fps, 1k tbn
+    Metadata:
+      encoder         : Lavc60.3.100 libvpx
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+02:23:46.675 [[34mdebug[39m] FFmpeg: Stream #0:0: Video: vp8, yuv420p(tv, progressive), 3456x2234, q=2-31, 1000 kb/s, 30 fps, 1k tbn
+    Metadata:
+      encoder         : Lavc60.3.100 libvpx
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+02:23:47.160 [[32minfo[39m] FFmpeg output: frame=    0 fps=0.0 q=42.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A
+02:23:47.160 [[34mdebug[39m] [VERBOSE] FFmpeg progress: frame=    0 fps=0.0 q=42.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A
+02:23:47.222 [[32minfo[39m] FFmpeg output: frame=    1 fps=0.0 q=63.0 size=       0kB time=00:00:00.03 bitrate= 113.7kbits/s speed=0.0594x
+02:23:47.222 [[34mdebug[39m] [VERBOSE] FFmpeg progress: frame=    1 fps=0.0 q=63.0 size=       0kB time=00:00:00.03 bitrate= 113.7kbits/s speed=0.0594x
+02:23:47.450 [[35msilly[39m] Icon already cached
+  {
+    "name": "code"
+  }
+02:23:47.451 [[35msilly[39m] Tracked active window with icon extraction
+  {
+    "app": "code",
+    "title": "server.js — dashcam-cli-minimal (Workspace)",
+    "hasId": true
+  }
+02:23:47.757 [[32minfo[39m] FFmpeg output: frame=    8 fps=7.3 q=63.0 size=       0kB time=00:00:00.26 bitrate=  14.1kbits/s speed=0.242x
+02:23:47.757 [[34mdebug[39m] [VERBOSE] FFmpeg progress: frame=    8 fps=7.3 q=63.0 size=       0kB time=00:00:00.26 bitrate=  14.1kbits/s speed=0.242x
+
+Received SIGTERM, stopping background recording...
+02:23:47.913 [[34mdebug[39m] → Entering stopRecording
+  {
+    "args": {}
+  }
+02:23:47.913 [[32minfo[39m] Stopping recording
+  {
+    "pid": 12173,
+    "duration": 2670,
+    "durationSeconds": "2.7"
+  }
+02:23:47.913 [[34mdebug[39m] Sending quit signal to FFmpeg...
+02:23:48.100 [[32minfo[39m] FFmpeg output: frame=   12 fps=8.0 q=63.0 Lsize=     249kB time=00:00:00.36 bitrate=5547.3kbits/s speed=0.245x    
+video:248kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.230803%
+02:23:48.100 [[34mdebug[39m] [VERBOSE] FFmpeg progress: frame=   12 fps=8.0 q=63.0 Lsize=     249kB time=00:00:00.36 bitrate=5547.3kbits/s speed=0.245x    
+video:248kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.230803%
+02:23:48.113 [[32minfo[39m] FFmpeg output: Exiting normally, received signal 15.
+02:23:48.113 [[34mdebug[39m] FFmpeg: Exiting normally, received signal 15.
+02:23:48.244 [[32minfo[39m] Temp file created successfully
+  {
+    "path": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm",
+    "size": 254482
+  }
+02:23:48.376 [[35msilly[39m] Icon already cached
+  {
+    "name": "code"
+  }
+02:23:48.376 [[35msilly[39m] Tracked active window with icon extraction
+  {
+    "app": "code",
+    "title": "server.js — dashcam-cli-minimal (Workspace)",
+    "hasId": true
+  }
+02:23:49.363 [[35msilly[39m] Icon already cached
+  {
+    "name": "code"
+  }
+02:23:49.363 [[35msilly[39m] Tracked active window with icon extraction
+  {
+    "app": "code",
+    "title": "server.js — dashcam-cli-minimal (Workspace)",
+    "hasId": true
+  }
+02:23:50.392 [[35msilly[39m] Icon already cached
+  {
+    "name": "code"
+  }
+02:23:50.392 [[35msilly[39m] Tracked active window with icon extraction
+  {
+    "app": "code",
+    "title": "server.js — dashcam-cli-minimal (Workspace)",
+    "hasId": true
+  }
+02:23:51.124 [[32minfo[39m] Looking for temp file
+  {
+    "inMemory": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm",
+    "infoFileExists": true,
+    "infoPath": "/Users/ianjennings/Development/dashcam-cli-minimal/.dashcam/temp-file.json"
+  }
+DEBUG: Looking for temp file {
+  inMemory: '/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm',
+  infoFileExists: true,
+  infoPath: '/Users/ianjennings/Development/dashcam-cli-minimal/.dashcam/temp-file.json'
+}
+02:23:51.128 [[32minfo[39m] Debug: temp file check
+  {
+    "tempFile": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm",
+    "exists": true,
+    "size": 254482
+  }
+02:23:51.128 [[34mdebug[39m] Temp file stats:
+  {
+    "size": 254482,
+    "path": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/temp-1761722625240.webm"
+  }
+02:23:51.128 [[34mdebug[39m] Copying temp file to final output...
+02:23:51.130 [[32minfo[39m] Successfully copied temp file to final output
+02:23:51.130 [[34mdebug[39m] Stopping application tracking...
+02:23:51.131 [[34mdebug[39m] → Entering ApplicationTracker.stop
+  {
+    "args": {}
+  }
+02:23:51.131 [[34mdebug[39m] Stopping enhanced application tracking
+02:23:51.132 [[32minfo[39m] Enhanced application tracking stopped
+  {
+    "uniqueApps": 1,
+    "totalEvents": 5,
+    "iconsExtracted": 1
+  }
+02:23:51.133 [[34mdebug[39m] ← Exiting ApplicationTracker.stop
+  {
+    "result": "undefined"
+  }
+02:23:51.133 [[34mdebug[39m] Stopping log tracking...
+  {
+    "recorderId": "recording-2025-10-29T07-23-44-988Z"
+  }
+02:23:51.133 [[32minfo[39m] Stopped tracking logs for /tmp/test-cli-log.txt
+02:23:51.133 [[32minfo[39m] Destroyed log tracker
+02:23:51.134 [[32minfo[39m] Stopped logs tracker instance
+  {
+    "recorderId": "recording-2025-10-29T07-23-44-988Z",
+    "screenId": "1"
+  }
+02:23:51.134 [[34mdebug[39m] Tracking results collected
+  {
+    "appResults": {
+      "apps": 1,
+      "icons": 1,
+      "events": 5
+    },
+    "logResults": {
+      "trackers": 1,
+      "totalEvents": 0
+    }
+  }
+02:23:51.134 [[34mdebug[39m] Creating GIF
+  {
+    "inputVideoPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+    "outputGifPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.gif"
+  }
+02:23:51.144 [[34mdebug[39m] Creating snapshot
+  {
+    "inputVideoPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+    "outputSnapshotPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.png",
+    "snapshotTimeSeconds": 0
+  }
+02:24:00.151 [[34mdebug[39m] → Entering ApplicationTracker.stop
+  {
+    "args": {}
+  }
+02:24:00.153 [[34mdebug[39m] Application tracking not started
+02:24:00.153 [[34mdebug[39m] ← Exiting ApplicationTracker.stop
+  {
+    "result": "undefined"
+  }
+Recording stopped: /Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm
+Starting upload...
+02:24:00.154 [[34mdebug[39m] → Entering upload
+  {
+    "args": {
+      "filePath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm",
+      "metadata": {
+        "title": "Dashcam Recording",
+        "description": "Recorded with Dashcam CLI",
+        "duration": 14908,
+        "clientStartDate": 1761722625243,
+        "apps": [
+          "code"
+        ],
+        "logs": [
+          {
+            "id": "CLI",
+            "name": "CLI",
+            "type": "cli",
+            "fileLocation": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/dashcam_logs_cli.jsonl",
+            "items": [
+              {
+                "item": 1,
+                "count": 0
+              }
+            ],
+            "count": 0
+          }
+        ],
+        "gifPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.gif",
+        "snapshotPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.png"
+      }
+    }
+  }
+02:24:00.182 [[32minfo[39m] Starting upload process
+  {
+    "filePath": "recording-2025-10-29T07-23-44-988Z.webm",
+    "fileType": "video",
+    "extension": "webm",
+    "title": "Dashcam Recording",
+    "hasProject": false
+  }
+02:24:00.182 [[34mdebug[39m] No project ID provided, fetching user projects...
+02:24:00.182 [[34mdebug[39m] → Entering auth.getProjects
+  {
+    "args": {}
+  }
+02:24:00.182 [[34mdebug[39m] Fetching user projects...
+02:24:00.524 [[34mdebug[39m] [VERBOSE] Projects fetched successfully
+  {
+    "projectCount": 8
+  }
+02:24:00.525 [[34mdebug[39m] ← Exiting auth.getProjects
+  {
+    "result": "undefined"
+  }
+02:24:00.525 [[32minfo[39m] Automatically selected first project
+  {
+    "projectId": "6387dc1e7c5392006384b0a8",
+    "projectName": "Demo Project"
+  }
+02:24:00.525 [[34mdebug[39m] [VERBOSE] Creating replay with config
+  {
+    "duration": 14908,
+    "apps": [
+      "code"
+    ],
+    "title": "Dashcam Recording",
+    "system": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "nodeVersion": "v22.3.0"
+    },
+    "clientStartDate": 1761722625243,
+    "project": "6387dc1e7c5392006384b0a8",
+    "description": "Recorded with Dashcam CLI"
+  }
+02:24:00.526 [[32minfo[39m] Creating replay
+  {
+    "duration": 14908,
+    "apps": [
+      "code"
+    ],
+    "title": "Dashcam Recording",
+    "system": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "nodeVersion": "v22.3.0"
+    },
+    "clientStartDate": 1761722625243,
+    "project": "6387dc1e7c5392006384b0a8",
+    "description": "Recorded with Dashcam CLI"
+  }
+02:24:00.620 [[32minfo[39m] Replay created successfully
+  {
+    "replayId": "6901c11000f26659ed1a91da",
+    "shareKey": "QZ4PH5VQI4wpl1xGACI2A",
+    "shareLink": "https://app.dashcam.io/replay/6901c11000f26659ed1a91da?share=QZ4PH5VQI4wpl1xGACI2A"
+  }
+02:24:00.621 [[34mdebug[39m] [VERBOSE] Getting STS credentials for replay
+  {
+    "replayId": "6901c11000f26659ed1a91da"
+  }
+02:24:00.621 [[34mdebug[39m] → Entering auth.getStsCredentials
+  {
+    "args": {}
+  }
+02:24:00.621 [[34mdebug[39m] Fetching STS credentials for upload...
+02:24:00.621 [[34mdebug[39m] [VERBOSE] Making STS request
+  {
+    "tokenPrefix": "eyJhbGciOi...",
+    "replayData": {
+      "id": "6901c11000f26659ed1a91da",
+      "duration": 14908,
+      "title": "Dashcam Recording",
+      "hasApps": true,
+      "hasIcons": true,
+      "hasProject": true
+    }
+  }
+02:24:00.878 [[34mdebug[39m] [VERBOSE] STS response received
+  {
+    "hasVideo": true,
+    "hasGif": true,
+    "hasImage": true,
+    "hasIcons": true
+  }
+02:24:00.878 [[34mdebug[39m] ← Exiting auth.getStsCredentials
+  {
+    "result": "undefined"
+  }
+02:24:00.878 [[34mdebug[39m] [VERBOSE] STS credentials received
+  {
+    "hasVideo": true,
+    "hasImage": true,
+    "hasGif": true
+  }
+02:24:00.879 [[34mdebug[39m] → Entering uploadFile
+  {
+    "args": {
+      "fileType": "video",
+      "extension": "mp4",
+      "file": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.webm"
+    }
+  }
+02:24:00.879 [[32minfo[39m] Starting upload of video
+  {
+    "file": "recording-2025-10-29T07-23-44-988Z.webm",
+    "fileType": "video",
+    "extension": "mp4",
+    "clipId": "1761722640621"
+  }
+02:24:00.879 [[34mdebug[39m] → Entering createS3Client
+  {
+    "args": {}
+  }
+02:24:00.879 [[34mdebug[39m] [VERBOSE] Creating S3 client
+  {
+    "fallbackRegion": "us-east-2",
+    "bucket": "replayable-prod",
+    "hasAccessKey": true,
+    "hasSecretKey": true,
+    "hasSessionToken": true
+  }
+02:24:00.882 [[34mdebug[39m] S3 client created
+  {
+    "configuredRegion": "us-east-2",
+    "bucket": "replayable-prod"
+  }
+02:24:00.882 [[34mdebug[39m] ← Exiting createS3Client
+  {
+    "result": "undefined"
+  }
+02:24:00.882 [[34mdebug[39m] Generating upload params:
+  {
+    "bucket": "replayable-prod",
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.mp4",
+    "contentType": "video/mp4"
+  }
+02:24:00.882 [[34mdebug[39m] [VERBOSE] File upload details
+  {
+    "fileSizeBytes": 254482,
+    "fileSizeMB": "0.24",
+    "bucket": "replayable-prod",
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.mp4",
+    "contentType": "video/mp4"
+  }
+02:24:00.883 [[34mdebug[39m] Adding GIF upload to queue
+  {
+    "gifPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.gif"
+  }
+02:24:00.883 [[34mdebug[39m] → Entering uploadFile
+  {
+    "args": {
+      "fileType": "image",
+      "extension": "gif",
+      "file": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.gif"
+    }
+  }
+02:24:00.883 [[32minfo[39m] Starting upload of image
+  {
+    "file": "recording-2025-10-29T07-23-44-988Z.gif",
+    "fileType": "image",
+    "extension": "gif",
+    "clipId": "1761722640621"
+  }
+02:24:00.883 [[34mdebug[39m] → Entering createS3Client
+  {
+    "args": {}
+  }
+02:24:00.883 [[34mdebug[39m] [VERBOSE] Creating S3 client
+  {
+    "fallbackRegion": "us-east-2",
+    "bucket": "replayable-prod",
+    "hasAccessKey": true,
+    "hasSecretKey": true,
+    "hasSessionToken": true
+  }
+02:24:00.889 [[34mdebug[39m] S3 client created
+  {
+    "configuredRegion": "us-east-2",
+    "bucket": "replayable-prod"
+  }
+02:24:00.890 [[34mdebug[39m] ← Exiting createS3Client
+  {
+    "result": "undefined"
+  }
+02:24:00.890 [[34mdebug[39m] Generating upload params:
+  {
+    "bucket": "replayable-prod",
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.gif",
+    "contentType": "image/gif"
+  }
+02:24:00.890 [[34mdebug[39m] [VERBOSE] File upload details
+  {
+    "fileSizeBytes": 119939262,
+    "fileSizeMB": "114.38",
+    "bucket": "replayable-prod",
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.gif",
+    "contentType": "image/gif"
+  }
+02:24:00.890 [[34mdebug[39m] Adding snapshot upload to queue
+  {
+    "snapshotPath": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.png"
+  }
+02:24:00.890 [[34mdebug[39m] → Entering uploadFile
+  {
+    "args": {
+      "fileType": "image",
+      "extension": "png",
+      "file": "/Users/ianjennings/Development/dashcam-cli-minimal/tmp/recordings/recording-2025-10-29T07-23-44-988Z.png"
+    }
+  }
+02:24:00.890 [[32minfo[39m] Starting upload of image
+  {
+    "file": "recording-2025-10-29T07-23-44-988Z.png",
+    "fileType": "image",
+    "extension": "png",
+    "clipId": "1761722640621"
+  }
+02:24:00.890 [[34mdebug[39m] → Entering createS3Client
+  {
+    "args": {}
+  }
+02:24:00.890 [[34mdebug[39m] [VERBOSE] Creating S3 client
+  {
+    "fallbackRegion": "us-east-2",
+    "bucket": "replayable-prod",
+    "hasAccessKey": true,
+    "hasSecretKey": true,
+    "hasSessionToken": true
+  }
+02:24:00.890 [[34mdebug[39m] S3 client created
+  {
+    "configuredRegion": "us-east-2",
+    "bucket": "replayable-prod"
+  }
+02:24:00.890 [[34mdebug[39m] ← Exiting createS3Client
+  {
+    "result": "undefined"
+  }
+02:24:00.890 [[34mdebug[39m] Generating upload params:
+  {
+    "bucket": "replayable-prod",
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.png",
+    "contentType": "image/png"
+  }
+02:24:00.890 [[34mdebug[39m] [VERBOSE] File upload details
+  {
+    "fileSizeBytes": 196908,
+    "fileSizeMB": "0.19",
+    "bucket": "replayable-prod",
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.png",
+    "contentType": "image/png"
+  }
+02:24:00.890 [[32minfo[39m] Starting asset uploads
+  {
+    "totalUploads": 3
+  }
+02:24:00.890 [[34mdebug[39m] Processing logs for upload
+  {
+    "logCount": 1
+  }
+02:24:00.890 [[34mdebug[39m] Trimming logs
+  {
+    "startTime": 1761722625243,
+    "endTime": 1761722640151,
+    "duration": 14908
+  }
+02:24:00.899 [[32minfo[39m] Trimming logs
+  {
+    "count": 1
+  }
+02:24:00.899 [[34mdebug[39m] Logs trimmed
+  {
+    "trimmedCount": 0,
+    "logsWithContent": 0
+  }
+02:24:00.899 [[32minfo[39m] Added log uploads to queue
+  {
+    "totalUploads": 3,
+    "logUploads": 0
+  }
+02:24:01.244 [[34mdebug[39m] [VERBOSE] Upload image progress: 100%
+  {
+    "loaded": 196908,
+    "total": 196908,
+    "speedMBps": "0.52"
+  }
+02:24:01.244 [[34mdebug[39m] ← Exiting uploadFile
+  {
+    "result": "undefined"
+  }
+02:24:01.323 [[34mdebug[39m] [VERBOSE] Upload video progress: 100%
+  {
+    "loaded": 254482,
+    "total": 254482,
+    "speedMBps": "0.55"
+  }
+02:24:01.323 [[32minfo[39m] Successfully uploaded video
+  {
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.mp4",
+    "location": "https://replayable-prod.s3.us-east-2.amazonaws.com/uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.mp4",
+    "duration": "0.4s",
+    "averageSpeed": "0.55 MB/s"
+  }
+02:24:01.323 [[34mdebug[39m] ← Exiting uploadFile
+  {
+    "result": "undefined"
+  }
+02:24:06.039 [[34mdebug[39m] [VERBOSE] Upload image progress: 30%
+  {
+    "loaded": 36053182,
+    "total": 119939262,
+    "speedMBps": "6.67"
+  }
+02:24:07.751 [[34mdebug[39m] [VERBOSE] Upload image progress: 100%
+  {
+    "loaded": 119939262,
+    "total": 119939262,
+    "speedMBps": "16.66"
+  }
+02:24:07.904 [[32minfo[39m] Successfully uploaded image
+  {
+    "key": "uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.gif",
+    "location": "https://replayable-prod.s3.us-east-2.amazonaws.com/uploads/6387dc1e7c5392006384b0a8/6901c11000f26659ed1a91da/6901c11000f26659ed1a91da.gif",
+    "duration": "7.0s",
+    "averageSpeed": "16.29 MB/s"
+  }
+02:24:07.905 [[34mdebug[39m] ← Exiting uploadFile
+  {
+    "result": "undefined"
+  }
+02:24:07.905 [[34mdebug[39m] Cleaning up uploaded files
+  {
+    "files": [
+      "recording-2025-10-29T07-23-44-988Z.webm",
+      "recording-2025-10-29T07-23-44-988Z.gif",
+      "recording-2025-10-29T07-23-44-988Z.png"
+    ]
+  }
+02:24:07.905 [[34mdebug[39m] Deleted uploaded file: recording-2025-10-29T07-23-44-988Z.webm
+02:24:07.919 [[34mdebug[39m] Deleted uploaded file: recording-2025-10-29T07-23-44-988Z.gif
+02:24:07.920 [[34mdebug[39m] Deleted uploaded file: recording-2025-10-29T07-23-44-988Z.png
+02:24:07.920 [[34mdebug[39m] Publishing replay...
+02:24:08.147 [[32minfo[39m] Upload process completed successfully
+  {
+    "replayId": "6901c11000f26659ed1a91da",
+    "shareLink": "https://app.dashcam.io/replay/6901c11000f26659ed1a91da?share=QZ4PH5VQI4wpl1xGACI2A"
+  }
+02:24:08.147 [[34mdebug[39m] ← Exiting upload
+  {
+    "result": "undefined"
+  }
+Upload completed successfully!
