@@ -77,14 +77,13 @@ program
 
 program
   .command('record')
-  .description('Start a screen recording')
+  .description('Start a background screen recording')
   .option('-a, --audio', 'Include audio in the recording')
   .option('-f, --fps <fps>', 'Frames per second (default: 30)', '30')
   .option('-o, --output <path>', 'Custom output path')
   .option('-t, --title <title>', 'Title for the recording')
   .option('-d, --description <description>', 'Description for the recording (supports markdown)')
   .option('-p, --project <project>', 'Project ID to upload the recording to')
-  .option('-b, --background', 'Run recording in background (allows use of stop command)')
   .action(async (options, command) => {
     try {
       // Check if recording is already active
@@ -100,82 +99,84 @@ program
 
       // Check authentication
       if (!await auth.isAuthenticated()) {
-        console.log('You need to login first. Run: dashcam login');
+        console.log('You need to login first. Run: dashcam auth <api-key>');
         process.exit(1);
       }
 
-      if (options.background) {
-        // Background mode - use process manager
-        console.log('Starting recording...');
-        
-        try {
-          const result = await processManager.startRecording({
-            fps: parseInt(options.fps) || 30,
-            audio: options.audio,
-            output: options.output,
-            title: options.title,
-            description: options.description,
-            project: options.project
-          });
+      // Always use background mode
+      console.log('Starting recording...');
+      
+      try {
+        const result = await processManager.startRecording({
+          fps: parseInt(options.fps) || 30,
+          audio: options.audio,
+          output: options.output,
+          title: options.title,
+          description: options.description,
+          project: options.project
+        });
 
-          console.log(`Recording started successfully (PID: ${result.pid})`);
-          console.log(`Output: ${result.outputPath}`);
-          console.log('Use "dashcam status" to check progress');
-          console.log('Use "dashcam stop" to stop recording');
-          
-          process.exit(0);
-        } catch (error) {
-          console.error('Failed to start recording:', error.message);
-          process.exit(1);
-        }
-      } else {
-        // Foreground mode - direct recording
-        console.log('Starting recording...');
+        console.log(`Recording started successfully (PID: ${result.pid})`);
+        console.log(`Output: ${result.outputPath}`);
+        console.log('Use "dashcam status" to check progress');
+        console.log('Use "dashcam stop" to stop recording and upload');
         
-        // Import and start recording directly in this process
-        const { startRecording } = await import('../lib/recorder.js');
+        // Keep this process alive for background recording
+        console.log('Recording is running in background...');
         
-        try {
-          const result = await startRecording({
-            fps: parseInt(options.fps) || 30,
-            includeAudio: options.audio,
-            customOutputPath: options.output
-          });
-
-          console.log('Recording started successfully');
-          console.log('Press Ctrl+C to stop recording');
+        // Set up signal handlers for graceful shutdown
+        let isShuttingDown = false;
+        const handleShutdown = async (signal) => {
+          if (isShuttingDown) {
+            console.log('Shutdown already in progress...');
+            return;
+          }
+          isShuttingDown = true;
           
-          // Keep process alive until stopped
-          process.on('SIGINT', async () => {
-            console.log('\nStopping recording...');
+          console.log(`\nReceived ${signal}, stopping background recording...`);
+          try {
+            // Stop the recording using the recorder directly (not processManager)
             const { stopRecording } = await import('../lib/recorder.js');
-            try {
-              const stopResult = await stopRecording();
-              console.log('Recording stopped and saved:', stopResult.outputPath);
+            const stopResult = await stopRecording();
+            
+            if (stopResult) {
+              console.log('Recording stopped:', stopResult.outputPath);
               
-              // Upload the recording
-              if (options.project) {
-                console.log('Uploading recording...');
-                await upload(stopResult.outputPath, {
-                  title: options.title,
-                  description: options.description,
-                  project: options.project
-                });
-                console.log('Upload completed successfully!');
-              }
-            } catch (error) {
-              console.error('Error stopping recording:', error.message);
+              // Import and call upload function with the correct format
+              const { upload } = await import('../lib/uploader.js');
+              
+              console.log('Starting upload...');
+              await upload(stopResult.outputPath, {
+                title: options.title || 'Dashcam Recording',
+                description: options.description || 'Recorded with Dashcam CLI',
+                project: options.project,
+                gifPath: stopResult.gifPath,
+                snapshotPath: stopResult.snapshotPath,
+                apps: stopResult.apps,
+                logs: stopResult.logs,
+                clientStartDate: stopResult.clientStartDate
+              });
+              
+              console.log('Upload completed successfully!');
             }
-            process.exit(0);
-          });
-
-          // Keep the process alive
-          setInterval(() => {}, 1000);
-          
-        } catch (error) {
-          console.error('Failed to start recording:', error.message);
-          process.exit(1);
-        }
+            
+            // Clean up process files
+            processManager.cleanup();
+          } catch (error) {
+            console.error('Error during shutdown:', error.message);
+            logger.error('Error during shutdown:', error);
+          }
+          process.exit(0);
+        };
+        
+        process.on('SIGINT', () => handleShutdown('SIGINT'));
+        process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+        
+        // Keep the process alive
+        await new Promise(() => {});
+      } catch (error) {
+        console.error('Failed to start recording:', error.message);
+        process.exit(1);
       }
     } catch (error) {
       logger.error('Failed to start recording:', error);
@@ -279,13 +280,13 @@ program
         console.log('Recording stopped successfully');
         console.log('Output saved to:', result.outputPath);
         
-        // Handle upload if there was an active project configuration
-        if (activeStatus?.options?.project) {
-          console.log('Uploading recording...');
+        // Always attempt to upload - let upload function find project if needed
+        console.log('Uploading recording...');
+        try {
           const uploadResult = await upload(result.outputPath, {
-            title: activeStatus.options.title,
-            description: activeStatus.options.description,
-            project: activeStatus.options.project,
+            title: activeStatus?.options?.title,
+            description: activeStatus?.options?.description,
+            project: activeStatus?.options?.project, // May be undefined, that's ok
             duration: result.duration,
             clientStartDate: result.clientStartDate,
             apps: result.apps,
@@ -295,8 +296,9 @@ program
           });
           
           console.log('✅ Upload complete! Share link:', uploadResult.shareLink);
-        } else {
-          console.log('✅ Recording completed successfully!');
+        } catch (uploadError) {
+          console.error('Upload failed:', uploadError.message);
+          console.log('Recording saved locally:', result.outputPath);
         }
       } catch (error) {
         console.error('Failed to stop recording:', error.message);
@@ -451,6 +453,86 @@ program
       await new Promise(() => {});
     } catch (error) {
       logger.error('Daemon failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('upload')
+  .description('Upload a completed recording file or recover from interrupted recording')
+  .argument('[filePath]', 'Path to the recording file to upload (optional)')
+  .option('-t, --title <title>', 'Title for the recording')
+  .option('-d, --description <description>', 'Description for the recording')
+  .option('-p, --project <project>', 'Project ID to upload to')
+  .option('--recover', 'Attempt to recover and upload from interrupted recording')
+  .action(async (filePath, options) => {
+    try {
+      let targetFile = filePath;
+      
+      if (options.recover) {
+        // Try to recover from interrupted recording
+        const tempFileInfoPath = path.join(process.cwd(), '.dashcam', 'temp-file.json');
+        
+        if (fs.existsSync(tempFileInfoPath)) {
+          console.log('Found interrupted recording, attempting recovery...');
+          
+          const tempFileInfo = JSON.parse(fs.readFileSync(tempFileInfoPath, 'utf8'));
+          const tempFile = tempFileInfo.tempFile;
+          
+          if (fs.existsSync(tempFile) && fs.statSync(tempFile).size > 0) {
+            console.log('Recovering recording from temp file...');
+            
+            // Import recorder to finalize the interrupted recording
+            const { stopRecording } = await import('../lib/recorder.js');
+            
+            try {
+              // This will attempt to finalize the temp file
+              const result = await stopRecording();
+              targetFile = result.outputPath;
+              console.log('Recovery successful:', result.outputPath);
+            } catch (error) {
+              console.error('Recovery failed:', error.message);
+              console.log('You can try uploading the temp file directly:', tempFile);
+              targetFile = tempFile;
+            }
+            
+            // Clean up temp file info after recovery attempt
+            fs.unlinkSync(tempFileInfoPath);
+          } else {
+            console.log('No valid temp file found for recovery');
+            process.exit(1);
+          }
+        } else {
+          console.log('No interrupted recording found');
+          process.exit(1);
+        }
+      }
+      
+      if (!targetFile) {
+        console.error('Please provide a file path or use --recover option');
+        console.log('Examples:');
+        console.log('  dashcam upload /path/to/recording.webm');
+        console.log('  dashcam upload --recover');
+        process.exit(1);
+      }
+      
+      if (!fs.existsSync(targetFile)) {
+        console.error('File not found:', targetFile);
+        process.exit(1);
+      }
+      
+      console.log('Uploading recording...');
+      const uploadResult = await upload(targetFile, {
+        title: options.title,
+        description: options.description,
+        project: options.project
+      });
+      
+      console.log('✅ Upload complete! Share link:', uploadResult.shareLink);
+      process.exit(0);
+      
+    } catch (error) {
+      console.error('Upload failed:', error.message);
       process.exit(1);
     }
   });

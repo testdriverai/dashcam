@@ -42,11 +42,26 @@ echo "4. Starting background logging process..."
 LOGGER_PID=$!
 echo "✅ Background logger started (PID: $LOGGER_PID)"
 
-# 5. Start dashcam recording
+# 5. Start dashcam recording in background
 echo ""
-echo "5. Starting dashcam recording..."
-./bin/dashcam.js record --verbose --title "Test Workflow Recording" --description "Testing CLI workflow with web and file tracking"
-echo "✅ Recording started"
+echo "5. Starting dashcam recording in background..."
+./bin/dashcam.js record --verbose --title "Test Workflow Recording" --description "Testing CLI workflow with web and file tracking" &
+
+# Give the recording a moment to initialize
+sleep 2
+echo "✅ Recording started in background"
+
+# 6. Let recording run for a few seconds
+echo ""
+echo "6. Letting recording run for 10 seconds..."
+sleep 10
+echo "✅ Recording completed"
+
+# 7. Stop recording and upload (this will kill the background recording process)
+echo ""
+echo "7. Stopping recording and uploading..."
+./bin/dashcam.js stop
+echo "✅ Recording stopped and uploaded"
 
 # Cleanup: Stop the background logger
 echo ""
