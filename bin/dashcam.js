@@ -451,24 +451,6 @@ program
     }
   });
 
-// Internal command for web logs daemon
-program
-  .command('_internal_daemon')
-  .description('Internal command for web logs daemon - do not use directly')
-  .action(async () => {
-    try {
-      const { WebLogsDaemon } = await import('../lib/webLogsDaemon.js');
-      const daemon = new WebLogsDaemon();
-      await daemon.start();
-      
-      // Keep process alive
-      await new Promise(() => {});
-    } catch (error) {
-      logger.error('Daemon failed:', error);
-      process.exit(1);
-    }
-  });
-
 program
   .command('upload')
   .description('Upload a completed recording file or recover from interrupted recording')

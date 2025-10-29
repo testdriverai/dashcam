@@ -1,0 +1,48 @@
+🎬 Starting Dashcam CLI Test Workflow
+======================================
+1. Authenticating with API key...
+18:22:40.554 [[32minfo[39m] Authenticating with API key
+18:22:40.827 [[32minfo[39m] Successfully authenticated and stored token
+Successfully authenticated with API key
+✅ Authentication complete
+
+2. Setting up web tracking for testdriver.ai...
+18:22:40.997 [[32minfo[39m] Started tracking logs for /tmp/test-cli-log.txt
+18:22:41.022 [[32minfo[39m] Web logs daemon not running, starting it...
+18:22:41.022 [[32minfo[39m] Added web tracker: testdriver-tracking
+Added web tracker "testdriver-tracking" with patterns: [ '*testdriver.ai*' ]
+✅ Web tracking configured
+
+3. Setting up file tracking...
+Using existing test file: /tmp/test-cli-log.txt
+✅ File tracking configured
+
+4. Starting background logging process...
+✅ Background logger started (PID: 7033)
+
+5. Starting dashcam recording in background...
+18:22:41.164 [[32minfo[39m] Verbose logging enabled
+Recording already in progress
+Duration: 33.7 seconds
+PID: 6007
+Use "dashcam stop" to stop the recording
+✅ Recording started in background
+
+6. Letting recording run for 2 minutes...
+✅ Recording completed
+
+7. Stopping recording and uploading...
+No active recording to stop
+✅ Recording stopped and uploaded
+
+🧹 Cleaning up...
+✅ Background logger stopped
+
+🎉 Test workflow completed successfully!
+======================================
+
+📊 Final Status:
+No active recording
+./test_workflow.sh: line 79:  7033 Terminated: 15          ( while true; do
+    echo "$(date): Current time logged" >> "$TEMP_FILE"; sleep 2;
+done )
