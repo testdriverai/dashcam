@@ -61,6 +61,60 @@ The project structure is organized as follows:
 - `/lib` - Core functionality modules
 - `/src` - Source code
 
+## Building Standalone Executables
+
+**Note:** This project uses ES modules (`"type": "module"`), which have limited support in `pkg`. The recommended distribution method is via npm or using a Node.js version manager.
+
+However, if you need standalone executables, here are the available options:
+
+### Option 1: NPM Global Install (Recommended)
+
+```bash
+npm install -g .
+```
+
+Users can then run `dashcam` from anywhere on their system.
+
+### Option 2: Using pkg (Experimental)
+
+This project includes `pkg` configuration, but due to ES module limitations, the executables may not work correctly. If you want to try:
+
+```bash
+# Install dependencies
+npm install
+
+# Build for all platforms
+npm run build:all
+
+# Or build for specific platforms
+npm run build:macos   # macOS (x64 and ARM64)
+npm run build:linux   # Linux (x64 and ARM64)
+npm run build:windows # Windows (x64)
+```
+
+**Known Limitations:**
+- ES module features (`import.meta`, top-level await) have limited `pkg` support
+- Some dependencies may not bundle correctly
+- Executables may be larger than expected due to including source files
+
+### Option 3: Docker Distribution
+
+Create a Docker container for cross-platform distribution:
+
+```dockerfile
+FROM node:18-slim
+WORKDIR /app
+COPY . .
+RUN npm install --production
+ENTRYPOINT ["node", "bin/dashcam.js"]
+```
+
+Build and run:
+```bash
+docker build -t dashcam-cli .
+docker run -it dashcam-cli --help
+```
+
 ## License
 
 MIT

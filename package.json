@@ -7,7 +7,30 @@
     "dashcam": "./bin/dashcam.js"
   },
   "scripts": {
-    "start": "node bin/dashcam.js"
+    "start": "node bin/dashcam.js",
+    "prebuild": "npm run bundle",
+    "bundle": "esbuild bin/dashcam.js --bundle --platform=node --target=node18 --format=cjs --outfile=dist/bundle.cjs --external:ffmpeg-static --external:ffprobe-static --external:@mapbox/node-pre-gyp --external:file-icon --external:get-windows --banner:js=\"const importMetaUrl = typeof document === 'undefined' ? require('url').pathToFileURL(__filename).href : document.currentScript && document.currentScript.src || new URL('index.js', document.baseURI).href;\" --define:import.meta.url='importMetaUrl'",
+    "build": "pkg dist/bundle.cjs --out-path dist --compress GZip --public",
+    "build:macos": "pkg dist/bundle.cjs --targets node18-macos-x64,node18-macos-arm64 --out-path dist --compress GZip --public",
+    "build:linux": "pkg dist/bundle.cjs --targets node18-linux-x64,node18-linux-arm64 --out-path dist --compress GZip --public",
+    "build:windows": "pkg dist/bundle.cjs --targets node18-win-x64 --out-path dist --compress GZip --public",
+    "build:all": "pkg dist/bundle.cjs --targets node18-macos-x64,node18-macos-arm64,node18-linux-x64,node18-linux-arm64,node18-win-x64 --out-path dist --compress GZip --public"
+  },
+  "pkg": {
+    "scripts": "dist/bundle.cjs",
+    "targets": [
+      "node18-macos-x64",
+      "node18-macos-arm64",
+      "node18-linux-x64",
+      "node18-linux-arm64",
+      "node18-win-x64"
+    ],
+    "outputPath": "dist",
+    "assets": [
+      "node_modules/ffmpeg-static/**/*",
+      "node_modules/ffprobe-static/**/*",
+      "node_modules/**/*.node"
+    ]
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.919.0",
@@ -27,6 +50,10 @@
     "tail": "^2.2.6",
     "winston": "^3.11.0",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.0",
+    "pkg": "^5.8.1"
   },
   "type": "module",
   "engines": {
