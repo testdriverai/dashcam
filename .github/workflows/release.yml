@@ -56,6 +56,36 @@ jobs:
           echo "Downloaded artifacts:"
           ls -R
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          # macOS binaries
+          if [ -f dashcam-macos/bundle-arm64 ]; then
+            cp dashcam-macos/bundle-arm64 release/dashcam-macos-arm64
+            chmod +x release/dashcam-macos-arm64
+          fi
+          if [ -f dashcam-macos/bundle-x64 ]; then
+            cp dashcam-macos/bundle-x64 release/dashcam-macos-x64
+            chmod +x release/dashcam-macos-x64
+          fi
+          # Linux binaries
+          if [ -f dashcam-linux/bundle-arm64 ]; then
+            cp dashcam-linux/bundle-arm64 release/dashcam-linux-arm64
+            chmod +x release/dashcam-linux-arm64
+          fi
+          if [ -f dashcam-linux/bundle-x64 ]; then
+            cp dashcam-linux/bundle-x64 release/dashcam-linux-x64
+            chmod +x release/dashcam-linux-x64
+          fi
+          # Windows binaries
+          if [ -f dashcam-windows/bundle-x64.exe ]; then
+            cp dashcam-windows/bundle-x64.exe release/dashcam-windows-x64.exe
+          fi
+          if [ -f dashcam-windows/bundle-arm64.exe ]; then
+            cp dashcam-windows/bundle-arm64.exe release/dashcam-windows-arm64.exe
+          fi
+          ls -la release/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -65,13 +95,15 @@ jobs:
             ## Dashcam CLI Release ${{ needs.bump-version.outputs.new_tag }}
             
             Automated release with binaries for macOS (x64, ARM64), Linux (x64, ARM64), and Windows (x64, ARM64).
-          files: |
-            dashcam-macos/bundle-arm64
-            dashcam-macos/bundle-x64
-            dashcam-linux/bundle-arm64
-            dashcam-linux/bundle-x64
-            dashcam-windows/bundle-x64.exe
-            dashcam-windows/bundle-arm64.exe
+            
+            ### Download Instructions
+            - **macOS Intel**: `dashcam-macos-x64`
+            - **macOS Apple Silicon**: `dashcam-macos-arm64`
+            - **Linux x64**: `dashcam-linux-x64`
+            - **Linux ARM64**: `dashcam-linux-arm64`
+            - **Windows x64**: `dashcam-windows-x64.exe`
+            - **Windows ARM64**: `dashcam-windows-arm64.exe`
+          files: release/*
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
