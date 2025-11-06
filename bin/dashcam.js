@@ -103,6 +103,14 @@ program
         process.exit(1);
       }
 
+      // Check screen recording permissions (macOS only)
+      const { ensurePermissions } = await import('../lib/permissions.js');
+      const hasPermissions = await ensurePermissions();
+      if (!hasPermissions) {
+        console.log('\n⚠️  Cannot start recording without screen recording permission.');
+        process.exit(1);
+      }
+
       // Always use background mode
       console.log('Starting recording...');
       

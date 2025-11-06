@@ -1,2 +1,5 @@
 # Ignore recordings directory
 tmp/recordings/
+
+# Build output
+dist/
