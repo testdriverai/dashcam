@@ -1,5 +1,5 @@
 {
-  "name": "dashcam-cli-minimal",
+  "name": "dashcam",
   "version": "1.0.0",
   "description": "Minimal CLI version of Dashcam desktop app",
   "main": "bin/index.js",
