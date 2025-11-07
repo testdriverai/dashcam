@@ -45,7 +45,7 @@ echo "✅ Background logger started (PID: $LOGGER_PID)"
 # 5. Start dashcam recording in background
 echo ""
 echo "5. Starting dashcam recording in background..."
-./bin/dashcam.js record --verbose --title "Test Workflow Recording" --description "Testing CLI workflow with web and file tracking" &
+./bin/dashcam.js record --title "Test Workflow Recording" --description "Testing CLI workflow with web and file tracking" &
 
 # Give the recording a moment to initialize
 sleep 2
