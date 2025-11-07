@@ -39,6 +39,8 @@
     "auth0": "^4.0.0",
     "commander": "^11.0.0",
     "execa": "^9.6.0",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0",
     "file-icon": "^6.0.0",
     "get-windows": "^9.2.3",
     "got": "^11.8.6",

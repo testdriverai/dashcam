@@ -8,7 +8,7 @@ echo "======================================"
 
 # 1. Authenticate with API key
 echo "1. Authenticating with API key..."
-./bin/dashcam.js auth YOUR_TESTDRIVER_API_KEY
+./bin/dashcam.js auth 4e93d8bf-3886-4d26-a144-116c4063522d
 echo "✅ Authentication complete"
 
 # 2. Track web for testdriver.ai
@@ -53,7 +53,7 @@ echo "✅ Recording started in background"
 
 # 6. Let recording run for a few seconds
 echo ""
-echo "6. Letting recording run for 2 minutes..."
+echo "6. Letting recording run for 20 seconds..."
 sleep 20
 echo "✅ Recording completed"
 
