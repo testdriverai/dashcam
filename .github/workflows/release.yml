@@ -1,10 +1,6 @@
 name: Release
 
 on:
-  push:
-    branches: [ main, master ]
-    tags-ignore:
-      - '**'
   workflow_dispatch:
 
 permissions:

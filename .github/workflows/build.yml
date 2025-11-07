@@ -1,8 +1,7 @@
 name: Build Binaries
 
 on:
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
   workflow_call:
     inputs:
       upload_artifacts:

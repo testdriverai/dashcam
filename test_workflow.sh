@@ -53,7 +53,7 @@ echo "✅ Recording started in background"
 
 # 6. Let recording run for a few seconds
 echo ""
-echo "6. Letting recording run for 2 minutes..."
+echo "6. Letting recording run for 20 seconds..."
 sleep 20
 echo "✅ Recording completed"
 
