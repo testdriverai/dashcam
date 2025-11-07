@@ -171,6 +171,12 @@ program
                 snapshotPath: stopResult.snapshotPath
               });
               
+              // Write upload result for stop command to read
+              processManager.writeUploadResult({
+                shareLink: uploadResult.shareLink,
+                replayId: uploadResult.replay?.id
+              });
+              
               log('✅ Upload complete!');
               log('📹 Watch your recording:', uploadResult.shareLink);
             }
@@ -302,7 +308,17 @@ program
         
         if (!filesExist) {
           console.log('✅ Recording was already uploaded by background process');
-          console.log('✅ Recording stopped and uploaded');
+          
+          // Try to read the upload result from the background process
+          const uploadResult = processManager.readUploadResult();
+          if (uploadResult && uploadResult.shareLink) {
+            console.log('✅ Recording stopped and uploaded');
+            console.log('📹 Watch your recording:', uploadResult.shareLink);
+          } else {
+            console.log('✅ Recording stopped and uploaded');
+            logger.warn('Upload result not available from background process');
+          }
+          
           process.exit(0);
         }
         
