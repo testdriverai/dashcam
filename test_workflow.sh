@@ -8,7 +8,7 @@ echo "======================================"
 
 # 1. Authenticate with API key
 echo "1. Authenticating with API key..."
-./bin/dashcam.js auth 4e93d8bf-3886-4d26-a144-116c4063522d
+./bin/dashcam.js auth $TD_API_KEY
 echo "✅ Authentication complete"
 
 # 2. Track web for testdriver.ai
