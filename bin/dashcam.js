@@ -26,7 +26,7 @@ if (!fs.existsSync(APP.recordingsDir)) {
 
 program
   .name('dashcam')
-  .description('CLI version of Dashcam screen recorder')
+  .description('Capture the steps to reproduce every bug.')
   .version(APP.version)
   .option('-v, --verbose', 'Enable verbose logging output')
   .hook('preAction', (thisCommand) => {
@@ -39,8 +39,8 @@ program
 
 program
   .command('auth')
-  .description('Authenticate with TestDriver using an API key')
-  .argument('<apiKey>', 'Your TestDriver API key')
+  .description("Authenticate the dashcam desktop using a team's apiKey")
+  .argument('<api-key>', 'Your team API key')
   .action(async (apiKey, options, command) => {
     try {
       logger.verbose('Starting authentication process', { 
@@ -75,9 +75,228 @@ program
     }
   });
 
+// Shared recording action to avoid duplication
+async function recordingAction(options, command) {
+  try {
+    const silent = options.silent;
+    const log = (...args) => { if (!silent) console.log(...args); };
+    const logError = (...args) => { if (!silent) console.error(...args); };
+    
+    // Check if recording is already active
+    if (processManager.isRecordingActive()) {
+      const status = processManager.getActiveStatus();
+      const duration = ((Date.now() - status.startTime) / 1000).toFixed(1);
+      log('Recording already in progress');
+      log(`Duration: ${duration} seconds`);
+      log(`PID: ${status.pid}`);
+      log('Use "dashcam stop" to stop the recording');
+      process.exit(0);
+    }
+
+    // Check authentication
+    if (!await auth.isAuthenticated()) {
+      log('You need to login first. Run: dashcam auth <api-key>');
+      process.exit(1);
+    }
+
+    // Check for piped input (description from stdin) if description option not set
+    let description = options.description;
+    if (!description && !process.stdin.isTTY) {
+      const chunks = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(chunk);
+      }
+      description = Buffer.concat(chunks).toString('utf-8');
+    }
+
+    // Check screen recording permissions (macOS only)
+    const { ensurePermissions } = await import('../lib/permissions.js');
+    const hasPermissions = await ensurePermissions();
+    if (!hasPermissions) {
+      log('\n⚠️  Cannot start recording without screen recording permission.');
+      process.exit(1);
+    }
+
+    // Always use background mode
+    log('Starting recording...');
+    
+    try {
+      const result = await processManager.startRecording({
+        fps: parseInt(options.fps) || 30,
+        audio: options.audio,
+        output: options.output,
+        title: options.title,
+        description: description,
+        project: options.project || options.k // Support both -p and -k for project
+      });
+
+      log(`Recording started successfully (PID: ${result.pid})`);
+      log(`Output: ${result.outputPath}`);
+      log('Use "dashcam status" to check progress');
+      log('Use "dashcam stop" to stop recording and upload');
+      
+      // Keep this process alive for background recording
+      log('Recording is running in background...');
+      
+      // Set up signal handlers for graceful shutdown
+      let isShuttingDown = false;
+      const handleShutdown = async (signal) => {
+        if (isShuttingDown) {
+          log('Shutdown already in progress...');
+          return;
+        }
+        isShuttingDown = true;
+        
+        log(`\nReceived ${signal}, stopping background recording...`);
+        try {
+          // Stop the recording using the recorder directly (not processManager)
+          const { stopRecording } = await import('../lib/recorder.js');
+          const stopResult = await stopRecording();
+          
+          if (stopResult) {
+            log('Recording stopped:', stopResult.outputPath);
+            
+            // Import and call upload function with the correct format
+            const { upload } = await import('../lib/uploader.js');
+            
+            log('Starting upload...');
+            const uploadResult = await upload(stopResult.outputPath, {
+              title: options.title || 'Dashcam Recording',
+              description: description || 'Recorded with Dashcam CLI',
+              project: options.project || options.k,
+              duration: stopResult.duration,
+              clientStartDate: stopResult.clientStartDate,
+              apps: stopResult.apps,
+              logs: stopResult.logs,
+              gifPath: stopResult.gifPath,
+              snapshotPath: stopResult.snapshotPath
+            });
+            
+            // Write upload result for stop command to read
+            processManager.writeUploadResult({
+              shareLink: uploadResult.shareLink,
+              replayId: uploadResult.replay?.id
+            });
+            
+            // Output based on format option (for create/markdown mode)
+            if (options.md) {
+              const replayId = uploadResult.replay?.id;
+              const shareKey = uploadResult.shareLink.split('share=')[1];
+              log(`[![Dashcam - ${options.title || 'New Replay'}](https://replayable-api-production.herokuapp.com/replay/${replayId}/gif?shareKey=${shareKey})](${uploadResult.shareLink})`);
+              log('');
+              log(`Watch [Dashcam - ${options.title || 'New Replay'}](${uploadResult.shareLink}) on Dashcam`);
+            } else {
+              log('✅ Upload complete!');
+              log('📹 Watch your recording:', uploadResult.shareLink);
+            }
+          }
+          
+          // Clean up process files, but preserve upload result for stop command
+          processManager.cleanup({ preserveResult: true });
+        } catch (error) {
+          logError('Error during shutdown:', error.message);
+          logger.error('Error during shutdown:', error);
+        }
+        process.exit(0);
+      };
+      
+      process.on('SIGINT', () => handleShutdown('SIGINT'));
+      process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+      
+      // Keep the process alive
+      await new Promise(() => {});
+    } catch (error) {
+      logError('Failed to start recording:', error.message);
+      process.exit(1);
+    }
+  } catch (error) {
+    logger.error('Failed to start recording:', error);
+    if (!options.silent) console.error('Failed to start recording:', error.message);
+    process.exit(1);
+  }
+}
+
+// 'create' command - creates a clip from current recording (like stop but with more options)
+program
+  .command('create')
+  .description('Create a clip and output the resulting url or markdown. Will launch desktop app for local editing before publishing.')
+  .option('-t, --title <string>', 'Title of the replay. Automatically generated if not supplied.')
+  .option('-d, --description [text]', 'Replay markdown body. This may also be piped in: `cat README.md | dashcam create`')
+  .option('--md', 'Returns code for a rich markdown image link.')
+  .option('-k, --project <project>', 'Project ID to publish to')
+  .action(async (options) => {
+    try {
+      // Check for piped input (description from stdin)
+      let description = options.description;
+      if (!description && !process.stdin.isTTY) {
+        const chunks = [];
+        for await (const chunk of process.stdin) {
+          chunks.push(chunk);
+        }
+        description = Buffer.concat(chunks).toString('utf-8');
+      }
+
+      if (!processManager.isRecordingActive()) {
+        console.log('No active recording to create clip from');
+        console.log('Start a recording first with "dashcam record" or "dashcam start"');
+        process.exit(0);
+      }
+
+      const activeStatus = processManager.getActiveStatus();
+      
+      console.log('Creating clip from recording...');
+      
+      const result = await processManager.stopActiveRecording();
+      
+      if (!result) {
+        console.log('Failed to stop recording');
+        process.exit(1);
+      }
+
+      console.log('Recording stopped successfully');
+      
+      // Upload the recording
+      console.log('Uploading clip...');
+      try {
+        const uploadResult = await upload(result.outputPath, {
+          title: options.title || activeStatus?.options?.title || 'Dashcam Recording',
+          description: description || activeStatus?.options?.description,
+          project: options.project || options.k || activeStatus?.options?.project,
+          duration: result.duration,
+          clientStartDate: result.clientStartDate,
+          apps: result.apps,
+          icons: result.icons,
+          gifPath: result.gifPath,
+          snapshotPath: result.snapshotPath
+        });
+        
+        // Output based on format option
+        if (options.md) {
+          const replayId = uploadResult.replay?.id;
+          const shareKey = uploadResult.shareLink.split('share=')[1];
+          console.log(`[![Dashcam - ${options.title || 'New Replay'}](https://replayable-api-production.herokuapp.com/replay/${replayId}/gif?shareKey=${shareKey})](${uploadResult.shareLink})`);
+          console.log('');
+          console.log(`Watch [Dashcam - ${options.title || 'New Replay'}](${uploadResult.shareLink}) on Dashcam`);
+        } else {
+          console.log(uploadResult.shareLink);
+        }
+      } catch (uploadError) {
+        console.error('Upload failed:', uploadError.message);
+        console.log('Recording saved locally:', result.outputPath);
+      }
+      
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error creating clip:', error);
+      console.error('Failed to create clip:', error.message);
+      process.exit(1);
+    }
+  });
+
+// 'record' command - the main recording command with all options
 program
   .command('record')
-  .description('Start a background screen recording')
+  .description('Start a recording terminal to be included in your dashcam video recording')
   .option('-a, --audio', 'Include audio in the recording')
   .option('-f, --fps <fps>', 'Frames per second (default: 30)', '30')
   .option('-o, --output <path>', 'Custom output path')
@@ -85,123 +304,38 @@ program
   .option('-d, --description <description>', 'Description for the recording (supports markdown)')
   .option('-p, --project <project>', 'Project ID to upload the recording to')
   .option('-s, --silent', 'Silent mode - suppress all output')
-  .action(async (options, command) => {
+  .action(recordingAction);
+
+program
+  .command('pipe')
+  .description('Pipe command output to dashcam to be included in recorded video')
+  .action(async () => {
     try {
-      const silent = options.silent;
-      const log = (...args) => { if (!silent) console.log(...args); };
-      const logError = (...args) => { if (!silent) console.error(...args); };
+      // Check if recording is active
+      if (!processManager.isRecordingActive()) {
+        console.error('No active recording. Start a recording first with "dashcam record" or "dashcam start"');
+        process.exit(1);
+      }
+
+      // Read from stdin
+      const chunks = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(chunk);
+        // Also output to stdout so pipe continues to work
+        process.stdout.write(chunk);
+      }
+      const content = Buffer.concat(chunks).toString('utf-8');
+
+      // Import the log tracker to add the piped content
+      const { logsTrackerManager } = await import('../lib/logs/index.js');
       
-      // Check if recording is already active
-      if (processManager.isRecordingActive()) {
-        const status = processManager.getActiveStatus();
-        const duration = ((Date.now() - status.startTime) / 1000).toFixed(1);
-        log('Recording already in progress');
-        log(`Duration: ${duration} seconds`);
-        log(`PID: ${status.pid}`);
-        log('Use "dashcam stop" to stop the recording');
-        process.exit(0);
-      }
-
-      // Check authentication
-      if (!await auth.isAuthenticated()) {
-        log('You need to login first. Run: dashcam auth <api-key>');
-        process.exit(1);
-      }
-
-      // Check screen recording permissions (macOS only)
-      const { ensurePermissions } = await import('../lib/permissions.js');
-      const hasPermissions = await ensurePermissions();
-      if (!hasPermissions) {
-        log('\n⚠️  Cannot start recording without screen recording permission.');
-        process.exit(1);
-      }
-
-      // Always use background mode
-      log('Starting recording...');
+      // Add piped content as a log entry
+      logsTrackerManager.addPipedLog(content);
       
-      try {
-        const result = await processManager.startRecording({
-          fps: parseInt(options.fps) || 30,
-          audio: options.audio,
-          output: options.output,
-          title: options.title,
-          description: options.description,
-          project: options.project
-        });
-
-        log(`Recording started successfully (PID: ${result.pid})`);
-        log(`Output: ${result.outputPath}`);
-        log('Use "dashcam status" to check progress');
-        log('Use "dashcam stop" to stop recording and upload');
-        
-        // Keep this process alive for background recording
-        log('Recording is running in background...');
-        
-        // Set up signal handlers for graceful shutdown
-        let isShuttingDown = false;
-        const handleShutdown = async (signal) => {
-          if (isShuttingDown) {
-            log('Shutdown already in progress...');
-            return;
-          }
-          isShuttingDown = true;
-          
-          log(`\nReceived ${signal}, stopping background recording...`);
-          try {
-            // Stop the recording using the recorder directly (not processManager)
-            const { stopRecording } = await import('../lib/recorder.js');
-            const stopResult = await stopRecording();
-            
-            if (stopResult) {
-              log('Recording stopped:', stopResult.outputPath);
-              
-              // Import and call upload function with the correct format
-              const { upload } = await import('../lib/uploader.js');
-              
-              log('Starting upload...');
-              const uploadResult = await upload(stopResult.outputPath, {
-                title: options.title || 'Dashcam Recording',
-                description: options.description || 'Recorded with Dashcam CLI',
-                project: options.project,
-                duration: stopResult.duration,
-                clientStartDate: stopResult.clientStartDate,
-                apps: stopResult.apps,
-                logs: stopResult.logs,
-                gifPath: stopResult.gifPath,
-                snapshotPath: stopResult.snapshotPath
-              });
-              
-              // Write upload result for stop command to read
-              processManager.writeUploadResult({
-                shareLink: uploadResult.shareLink,
-                replayId: uploadResult.replay?.id
-              });
-              
-              log('✅ Upload complete!');
-              log('📹 Watch your recording:', uploadResult.shareLink);
-            }
-            
-            // Clean up process files, but preserve upload result for stop command
-            processManager.cleanup({ preserveResult: true });
-          } catch (error) {
-            logError('Error during shutdown:', error.message);
-            logger.error('Error during shutdown:', error);
-          }
-          process.exit(0);
-        };
-        
-        process.on('SIGINT', () => handleShutdown('SIGINT'));
-        process.on('SIGTERM', () => handleShutdown('SIGTERM'));
-        
-        // Keep the process alive
-        await new Promise(() => {});
-      } catch (error) {
-        logError('Failed to start recording:', error.message);
-        process.exit(1);
-      }
+      process.exit(0);
     } catch (error) {
-      logger.error('Failed to start recording:', error);
-      if (!options.silent) console.error('Failed to start recording:', error.message);
+      logger.error('Failed to pipe content:', error);
+      console.error('Failed to pipe content:', error.message);
       process.exit(1);
     }
   });
@@ -228,43 +362,94 @@ program
 
 
 
+// 'start' command - alias for record with simple instant replay mode
+program
+  .command('start')
+  .description('Start instant replay recording on dashcam')
+  .action(async () => {
+    // Call recordingAction with minimal options for instant replay
+    await recordingAction({ 
+      fps: '30', 
+      audio: false, 
+      silent: false 
+    }, null);
+  });
+
 program
   .command('track')
-  .description('Track logs from web URLs or application files')
-  .option('--web <pattern>', 'Web URL pattern to track (can use wildcards like *)')
-  .option('--app <pattern>', 'Application file pattern to track (can use wildcards like *)')
-  .option('--name <name>', 'Name for the tracking configuration')
+  .description('Add a logs config to Dashcam')
+  .option('--name <name>', 'Name for the tracking configuration (required)')
+  .option('--type <type>', 'Type of tracker: "application" or "web" (required)')
+  .option('--pattern <pattern>', 'Pattern to track (can be used multiple times)', (value, previous) => {
+    return previous ? previous.concat([value]) : [value];
+  })
+  .option('--web <pattern>', 'Web URL pattern to track (can use wildcards like *) - deprecated, use --type=web --pattern instead')
+  .option('--app <pattern>', 'Application file pattern to track (can use wildcards like *) - deprecated, use --type=application --pattern instead')
   .action(async (options) => {
     try {
-      // Validate that at least one pattern is provided
-      if (!options.web && !options.app) {
-        console.error('Error: Must provide either --web or --app pattern');
+      // Support both old and new syntax
+      // New syntax: --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"
+      // Old syntax: --web <pattern> --app <pattern>
+      
+      if (options.type && options.pattern) {
+        // New syntax validation
+        if (!options.name) {
+          console.error('Error: --name is required when using --type and --pattern');
+          console.log('Example: dashcam track --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"');
+          process.exit(1);
+        }
+        
+        if (options.type !== 'web' && options.type !== 'application') {
+          console.error('Error: --type must be either "web" or "application"');
+          process.exit(1);
+        }
+        
+        const config = {
+          name: options.name,
+          type: options.type,
+          patterns: options.pattern,
+          enabled: true
+        };
+        
+        await createPattern(config);
+        console.log(`${options.type === 'web' ? 'Web' : 'Application'} tracking pattern added successfully:`, options.name);
+        console.log('Patterns:', options.pattern.join(', '));
+        
+      } else if (options.web || options.app) {
+        // Old syntax for backward compatibility
+        if (options.web) {
+          const config = {
+            name: options.name || 'Web Pattern',
+            type: 'web',
+            patterns: [options.web],
+            enabled: true
+          };
+          
+          await createPattern(config);
+          console.log('Web tracking pattern added successfully:', options.web);
+        }
+
+        if (options.app) {
+          const config = {
+            name: options.name || 'App Pattern',
+            type: 'application',
+            patterns: [options.app],
+            enabled: true
+          };
+          
+          await createPattern(config);
+          console.log('Application tracking pattern added successfully:', options.app);
+        }
+      } else {
+        console.error('Error: Must provide either:');
+        console.log('  --name --type --pattern (new syntax)');
+        console.log('  --web or --app (old syntax)');
+        console.log('\nExamples:');
+        console.log('  dashcam track --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"');
+        console.log('  dashcam track --web "*facebook.com*"');
         process.exit(1);
       }
-
-      if (options.web) {
-        const config = {
-          name: options.name || 'Web Pattern',
-          type: 'web',
-          patterns: [options.web],
-          enabled: true
-        };
-        
-        await createPattern(config);
-        console.log('Web tracking pattern added successfully:', options.web);
-      }
-
-      if (options.app) {
-        const config = {
-          name: options.name || 'App Pattern',
-          type: 'application',
-          patterns: [options.app],
-          enabled: true
-        };
-        
-        await createPattern(config);
-        console.log('Application tracking pattern added successfully:', options.app);
-      }
+      
       process.exit(0);
     } catch (error) {
       console.error('Failed to add tracking pattern:', error.message);
@@ -565,5 +750,14 @@ program
       process.exit(1);
     }
   });
+
+// If no command specified and there are options like --md, treat as create command
+program.action(async (options) => {
+  // Default to create command when running just "dashcam"
+  const createCommand = program.commands.find(cmd => cmd.name() === 'create');
+  if (createCommand && createCommand._actionHandler) {
+    await createCommand._actionHandler(options);
+  }
+});
 
 program.parse();

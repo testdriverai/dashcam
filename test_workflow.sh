@@ -30,44 +30,93 @@ if [ ! -f "$TEMP_FILE" ]; then
 fi
 echo "✅ File tracking configured"
 
-# 4. Start background process that logs current time to the temporary file
+# 4. Start dashcam recording in background
 echo ""
-echo "4. Starting background logging process..."
-(
-  while true; do
-    echo "$(date): Current time logged" >> "$TEMP_FILE"
-    sleep 2
-  done
-) &
-LOGGER_PID=$!
-echo "✅ Background logger started (PID: $LOGGER_PID)"
+echo "4. Starting dashcam recording in background..."
+# Start recording and redirect output to a log file so we can still monitor it
+./bin/dashcam.js record --title "Sync Test Recording" --description "Testing video/log synchronization with timestamped events" > /tmp/dashcam-recording.log 2>&1 &
+RECORD_PID=$!
 
-# 5. Start dashcam recording in background
+# Wait for recording to initialize and log tracker to start
+echo "Waiting for recording to initialize (PID: $RECORD_PID)..."
+sleep 1
+
+# Write first event after log tracker is fully ready
+RECORDING_START=$(date +%s)
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🔴 EVENT 1: Recording START at $(date '+%H:%M:%S')"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "[EVENT 1] Recording started at $(date '+%H:%M:%S') - TIMESTAMP: $RECORDING_START" >> "$TEMP_FILE"
+
+# Verify recording is actually running
+if ps -p $RECORD_PID > /dev/null; then
+  echo "✅ Recording started successfully"
+else
+  echo "❌ Recording process died, check /tmp/dashcam-recording.log"
+  exit 1
+fi
+
+# 5. Create synchronized log events with visual markers
 echo ""
-echo "5. Starting dashcam recording in background..."
-./bin/dashcam.js record --title "Test Workflow Recording" --description "Testing CLI workflow with web and file tracking" &
+echo "5. Creating synchronized test events..."
+echo ""
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║  SYNC TEST - Watch for these markers in the recording!        ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
 
-# Give the recording a moment to initialize
+# Event 1 was already written above - now continue with the rest
+sleep 3
+
+# Event 2 - after 3 seconds
+echo ""
+echo "🟡 EVENT 2: 3 seconds mark at $(date '+%H:%M:%S')"
+echo "[EVENT 2] 3 seconds elapsed at $(date '+%H:%M:%S')" >> "$TEMP_FILE"
+sleep 3
+
+# Event 3 - after 6 seconds
+echo ""
+echo "🟢 EVENT 3: 6 seconds mark at $(date '+%H:%M:%S')"
+echo "[EVENT 3] 6 seconds elapsed at $(date '+%H:%M:%S')" >> "$TEMP_FILE"
+sleep 3
+
+# Event 4 - after 9 seconds
+echo ""
+echo "🔵 EVENT 4: 9 seconds mark at $(date '+%H:%M:%S')"
+echo "[EVENT 4] 9 seconds elapsed at $(date '+%H:%M:%S')" >> "$TEMP_FILE"
+sleep 3
+
+# Event 5 - after 12 seconds
+echo ""
+echo "🟣 EVENT 5: 12 seconds mark at $(date '+%H:%M:%S')"
+echo "[EVENT 5] 12 seconds elapsed at $(date '+%H:%M:%S')" >> "$TEMP_FILE"
+sleep 3
+
+# Event 6 - before ending
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "⚫ EVENT 6: Recording END at $(date '+%H:%M:%S')"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+RECORDING_END=$(date +%s)
+echo "[EVENT 6] Recording ending at $(date '+%H:%M:%S') - TIMESTAMP: $RECORDING_END" >> "$TEMP_FILE"
+
+DURATION=$((RECORDING_END - RECORDING_START))
+echo ""
+echo "✅ Test events completed (Duration: ${DURATION}s)"
+
+# Give a moment for the last event to be fully processed
+echo ""
+echo "Waiting 2 seconds to ensure all events are captured..."
 sleep 2
-echo "✅ Recording started in background"
 
-# 6. Let recording run for a few seconds
+# 6. Stop recording and upload (this will kill the background recording process)
 echo ""
-echo "6. Letting recording run for 20 seconds..."
-sleep 20
-echo "✅ Recording completed"
-
-# 7. Stop recording and upload (this will kill the background recording process)
-echo ""
-echo "7. Stopping recording and uploading..."
+echo "6. Stopping recording and uploading..."
 ./bin/dashcam.js stop
 echo "✅ Recording stopped and uploaded"
 
-# Cleanup: Stop the background logger
 echo ""
 echo "🧹 Cleaning up..."
-kill $LOGGER_PID 2>/dev/null || true
-echo "✅ Background logger stopped"
 
 echo ""
 echo "🎉 Test workflow completed successfully!"
@@ -77,4 +126,29 @@ echo "======================================"
 echo ""
 echo "📊 Final Status:"
 ./bin/dashcam.js status
+
+echo ""
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║                  SYNC VERIFICATION GUIDE                       ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
+echo "To verify video/log synchronization in the recording:"
+echo ""
+echo "1. Open the uploaded recording in your browser"
+echo "2. Check the log panel for '$TEMP_FILE'"
+echo "3. Verify these events appear at the correct times:"
+echo ""
+echo "   Time   | Terminal Display          | Log Entry"
+echo "   -------|---------------------------|---------------------------"
+echo "   0:00   | 🔴 EVENT 1               | [EVENT 1] Recording started"
+echo "   0:03   | 🟡 EVENT 2               | [EVENT 2] 3 seconds elapsed"
+echo "   0:06   | 🟢 EVENT 3               | [EVENT 3] 6 seconds elapsed"
+echo "   0:09   | 🔵 EVENT 4               | [EVENT 4] 9 seconds elapsed"
+echo "   0:12   | 🟣 EVENT 5               | [EVENT 5] 12 seconds elapsed"
+echo "   0:15   | ⚫ EVENT 6               | [EVENT 6] Recording ending"
+echo ""
+echo "4. The log timestamps should match the video timeline exactly"
+echo "5. Each colored event marker should appear in the video"
+echo "   at the same moment as the corresponding log entry"
+echo ""
 
