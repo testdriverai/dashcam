@@ -117,8 +117,8 @@ async function recordingAction(options, command) {
       process.exit(1);
     }
 
-    // Always use background mode
-    log('Starting recording...');
+    // Start recording in background mode
+    log('Starting recording in background...');
     
     try {
       const result = await processManager.startRecording({
@@ -130,81 +130,13 @@ async function recordingAction(options, command) {
         project: options.project || options.k // Support both -p and -k for project
       });
 
-      log(`Recording started successfully (PID: ${result.pid})`);
+      log(`✅ Recording started successfully (PID: ${result.pid})`);
       log(`Output: ${result.outputPath}`);
+      log('');
       log('Use "dashcam status" to check progress');
       log('Use "dashcam stop" to stop recording and upload');
       
-      // Keep this process alive for background recording
-      log('Recording is running in background...');
-      
-      // Set up signal handlers for graceful shutdown
-      let isShuttingDown = false;
-      const handleShutdown = async (signal) => {
-        if (isShuttingDown) {
-          log('Shutdown already in progress...');
-          return;
-        }
-        isShuttingDown = true;
-        
-        log(`\nReceived ${signal}, stopping background recording...`);
-        try {
-          // Stop the recording using the recorder directly (not processManager)
-          const { stopRecording } = await import('../lib/recorder.js');
-          const stopResult = await stopRecording();
-          
-          if (stopResult) {
-            log('Recording stopped:', stopResult.outputPath);
-            
-            // Import and call upload function with the correct format
-            const { upload } = await import('../lib/uploader.js');
-            
-            log('Starting upload...');
-            const uploadResult = await upload(stopResult.outputPath, {
-              title: options.title || 'Dashcam Recording',
-              description: description || 'Recorded with Dashcam CLI',
-              project: options.project || options.k,
-              duration: stopResult.duration,
-              clientStartDate: stopResult.clientStartDate,
-              apps: stopResult.apps,
-              logs: stopResult.logs,
-              gifPath: stopResult.gifPath,
-              snapshotPath: stopResult.snapshotPath
-            });
-            
-            // Write upload result for stop command to read
-            processManager.writeUploadResult({
-              shareLink: uploadResult.shareLink,
-              replayId: uploadResult.replay?.id
-            });
-            
-            // Output based on format option (for create/markdown mode)
-            if (options.md) {
-              const replayId = uploadResult.replay?.id;
-              const shareKey = uploadResult.shareLink.split('share=')[1];
-              log(`[![Dashcam - ${options.title || 'New Replay'}](https://replayable-api-production.herokuapp.com/replay/${replayId}/gif?shareKey=${shareKey})](${uploadResult.shareLink})`);
-              log('');
-              log(`Watch [Dashcam - ${options.title || 'New Replay'}](${uploadResult.shareLink}) on Dashcam`);
-            } else {
-              log('✅ Upload complete!');
-              log('📹 Watch your recording:', uploadResult.shareLink);
-            }
-          }
-          
-          // Clean up process files, but preserve upload result for stop command
-          processManager.cleanup({ preserveResult: true });
-        } catch (error) {
-          logError('Error during shutdown:', error.message);
-          logger.error('Error during shutdown:', error);
-        }
-        process.exit(0);
-      };
-      
-      process.on('SIGINT', () => handleShutdown('SIGINT'));
-      process.on('SIGTERM', () => handleShutdown('SIGTERM'));
-      
-      // Keep the process alive
-      await new Promise(() => {});
+      process.exit(0);
     } catch (error) {
       logError('Failed to start recording:', error.message);
       process.exit(1);
