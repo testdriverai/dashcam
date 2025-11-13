@@ -691,6 +691,13 @@ program
   });
 
 // If no command specified, treat as create command
-program.action(createClipAction);
+program.action((options, command) => {
+  // Merge global options with command options
+  const mergedOptions = {
+    ...command.opts(),
+    ...options
+  };
+  return createClipAction(mergedOptions);
+});
 
 program.parse();
