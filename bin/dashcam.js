@@ -29,10 +29,6 @@ program
   .description('Capture the steps to reproduce every bug.')
   .version(APP.version)
   .option('-v, --verbose', 'Enable verbose logging output')
-  .option('-t, --title <string>', 'Title of the replay (used with create/default action)')
-  .option('-d, --description [text]', 'Replay markdown body (used with create/default action)')
-  .option('--md', 'Returns code for a rich markdown image link (used with create/default action)')
-  .option('-k, --project <project>', 'Project ID to publish to (used with create/default action)')
   .hook('preAction', (thisCommand) => {
     // Enable verbose logging if the flag is set
     if (thisCommand.opts().verbose) {
@@ -152,76 +148,6 @@ async function recordingAction(options, command) {
   }
 }
 
-// Shared create/clip action
-async function createClipAction(options) {
-  try {
-    // Check for piped input (description from stdin)
-    let description = options.description;
-    if (!description && !process.stdin.isTTY) {
-      const chunks = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-      }
-      description = Buffer.concat(chunks).toString('utf-8');
-    }
-
-    if (!processManager.isRecordingActive()) {
-      console.log('No active recording to create clip from');
-      console.log('Start a recording first with "dashcam record" or "dashcam start"');
-      process.exit(0);
-    }
-
-    const activeStatus = processManager.getActiveStatus();
-    
-    console.log('Creating clip from recording...');
-    
-    const result = await processManager.stopActiveRecording();
-    
-    if (!result) {
-      console.log('Failed to stop recording');
-      process.exit(1);
-    }
-
-    console.log('Recording stopped successfully');
-    
-    // Upload the recording
-    console.log('Uploading clip...');
-    try {
-      const uploadResult = await upload(result.outputPath, {
-        title: options.title || activeStatus?.options?.title || 'Dashcam Recording',
-        description: description || activeStatus?.options?.description,
-        project: options.project || options.k || activeStatus?.options?.project,
-        duration: result.duration,
-        clientStartDate: result.clientStartDate,
-        apps: result.apps,
-        icons: result.icons,
-        gifPath: result.gifPath,
-        snapshotPath: result.snapshotPath
-      });
-      
-      // Output based on format option
-      if (options.md) {
-        const replayId = uploadResult.replay?.id;
-        const shareKey = uploadResult.shareLink.split('share=')[1];
-        console.log(`[![Dashcam - ${options.title || 'New Replay'}](https://replayable-api-production.herokuapp.com/replay/${replayId}/gif?shareKey=${shareKey})](${uploadResult.shareLink})`);
-        console.log('');
-        console.log(`Watch [Dashcam - ${options.title || 'New Replay'}](${uploadResult.shareLink}) on Dashcam`);
-      } else {
-        console.log(uploadResult.shareLink);
-      }
-    } catch (uploadError) {
-      console.error('Upload failed:', uploadError.message);
-      console.log('Recording saved locally:', result.outputPath);
-    }
-    
-    process.exit(0);
-  } catch (error) {
-    logger.error('Error creating clip:', error);
-    console.error('Failed to create clip:', error.message);
-    process.exit(1);
-  }
-}
-
 // 'create' command - creates a clip from current recording (like stop but with more options)
 program
   .command('create')
@@ -230,7 +156,74 @@ program
   .option('-d, --description [text]', 'Replay markdown body. This may also be piped in: `cat README.md | dashcam create`')
   .option('--md', 'Returns code for a rich markdown image link.')
   .option('-k, --project <project>', 'Project ID to publish to')
-  .action(createClipAction);
+  .action(async (options) => {
+    try {
+      // Check for piped input (description from stdin)
+      let description = options.description;
+      if (!description && !process.stdin.isTTY) {
+        const chunks = [];
+        for await (const chunk of process.stdin) {
+          chunks.push(chunk);
+        }
+        description = Buffer.concat(chunks).toString('utf-8');
+      }
+
+      if (!processManager.isRecordingActive()) {
+        console.log('No active recording to create clip from');
+        console.log('Start a recording first with "dashcam record" or "dashcam start"');
+        process.exit(0);
+      }
+
+      const activeStatus = processManager.getActiveStatus();
+      
+      console.log('Creating clip from recording...');
+      
+      const result = await processManager.stopActiveRecording();
+      
+      if (!result) {
+        console.log('Failed to stop recording');
+        process.exit(1);
+      }
+
+      console.log('Recording stopped successfully');
+      
+      // Upload the recording
+      console.log('Uploading clip...');
+      try {
+        const uploadResult = await upload(result.outputPath, {
+          title: options.title || activeStatus?.options?.title || 'Dashcam Recording',
+          description: description || activeStatus?.options?.description,
+          project: options.project || options.k || activeStatus?.options?.project,
+          duration: result.duration,
+          clientStartDate: result.clientStartDate,
+          apps: result.apps,
+          icons: result.icons,
+          gifPath: result.gifPath,
+          snapshotPath: result.snapshotPath
+        });
+        
+        // Output based on format option
+        if (options.md) {
+          const replayId = uploadResult.replay?.id;
+          const shareKey = uploadResult.shareLink.split('share=')[1];
+          console.log(`[![Dashcam - ${options.title || 'New Replay'}](https://replayable-api-production.herokuapp.com/replay/${replayId}/gif?shareKey=${shareKey})](${uploadResult.shareLink})`);
+          console.log('');
+          console.log(`Watch [Dashcam - ${options.title || 'New Replay'}](${uploadResult.shareLink}) on Dashcam`);
+        } else {
+          console.log(uploadResult.shareLink);
+        }
+      } catch (uploadError) {
+        console.error('Upload failed:', uploadError.message);
+        console.log('Recording saved locally:', result.outputPath);
+      }
+      
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error creating clip:', error);
+      console.error('Failed to create clip:', error.message);
+      process.exit(1);
+    }
+  });
 
 // 'record' command - the main recording command with all options
 program
@@ -689,15 +682,5 @@ program
       process.exit(1);
     }
   });
-
-// If no command specified, treat as create command
-program.action((options, command) => {
-  // Merge global options with command options
-  const mergedOptions = {
-    ...command.opts(),
-    ...options
-  };
-  return createClipAction(mergedOptions);
-});
 
 program.parse();
