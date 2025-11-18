@@ -4,7 +4,6 @@ import { auth } from '../lib/auth.js';
 import { upload } from '../lib/uploader.js';
 import { logger, setVerbose } from '../lib/logger.js';
 import { APP } from '../lib/config.js';
-import { createPattern } from '../lib/tracking.js';
 import { processManager } from '../lib/processManager.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -239,40 +238,6 @@ program
   .action(recordingAction);
 
 program
-  .command('pipe')
-  .description('Pipe command output to dashcam to be included in recorded video')
-  .action(async () => {
-    try {
-      // Check if recording is active
-      if (!processManager.isRecordingActive()) {
-        console.error('No active recording. Start a recording first with "dashcam record" or "dashcam start"');
-        process.exit(1);
-      }
-
-      // Read from stdin
-      const chunks = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-        // Also output to stdout so pipe continues to work
-        process.stdout.write(chunk);
-      }
-      const content = Buffer.concat(chunks).toString('utf-8');
-
-      // Import the log tracker to add the piped content
-      const { logsTrackerManager } = await import('../lib/logs/index.js');
-      
-      // Add piped content as a log entry
-      logsTrackerManager.addPipedLog(content);
-      
-      process.exit(0);
-    } catch (error) {
-      logger.error('Failed to pipe content:', error);
-      console.error('Failed to pipe content:', error.message);
-      process.exit(1);
-    }
-  });
-
-program
   .command('status')
   .description('Show current recording status')
   .action(() => {
@@ -305,52 +270,6 @@ program
       audio: false, 
       silent: false 
     }, null);
-  });
-
-program
-  .command('track')
-  .description('Add a logs config to Dashcam')
-  .option('--web <pattern>', 'Web URL pattern to track (can use wildcards like *)')
-  .option('--app <pattern>', 'Application file pattern to track (can use wildcards like *)')
-  .action(async (options) => {
-    try {
-      if (options.web) {
-        const config = {
-          name: 'Web Pattern',
-          type: 'web',
-          patterns: [options.web],
-          enabled: true
-        };
-        
-        await createPattern(config);
-        console.log('Web tracking pattern added successfully:', options.web);
-      }
-
-      if (options.app) {
-        const config = {
-          name: 'App Pattern',
-          type: 'application',
-          patterns: [options.app],
-          enabled: true
-        };
-        
-        await createPattern(config);
-        console.log('Application tracking pattern added successfully:', options.app);
-      }
-      
-      if (!options.web && !options.app) {
-        console.error('Error: Must provide either --web or --app');
-        console.log('\nExamples:');
-        console.log('  dashcam track --web "*facebook.com*"');
-        console.log('  dashcam track --app "/var/log/app.log"');
-        process.exit(1);
-      }
-      
-      process.exit(0);
-    } catch (error) {
-      console.error('Failed to add tracking pattern:', error.message);
-      process.exit(1);
-    }
   });
 
 program
