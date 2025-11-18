@@ -1,16 +1,27 @@
-# Single-Frame Video Issue - Root Cause & Fix
+# Single-Frame Video & Frame Drop Issues - Root Cause & Fix
 
 ## Problem Description
 
-Videos produced by dashcam-cli were sometimes appearing as single-frame videos, even though they actually contained multiple frames. This particularly affected very short recordings.
+Videos produced by dashcam-cli had two related issues:
+1. **Single-frame appearance**: Videos appearing as single-frame, even though they contained multiple frames
+2. **Frame drops**: Videos showing significantly shorter duration than actual recording time (e.g., 12 seconds shown vs 68 seconds actual)
 
-## Root Cause
+## Root Causes
 
-The issue was **incomplete WebM container metadata**, not actually single-frame videos. When ffmpeg's VP9 encoder is terminated before it can properly finalize the stream:
+### Issue 1: Incomplete WebM Container Metadata
+When ffmpeg's VP9 encoder is terminated before it can properly finalize the stream:
 
 1. **Missing duration metadata** - The WebM container doesn't have duration information
 2. **Premature file ending** - FFprobe reports "File ended prematurely"  
 3. **Playback issues** - Some players show only the first frame because they can't seek without duration metadata
+
+### Issue 2: Frame Dropping During Capture
+Frames were being dropped during the recording process due to:
+
+1. **Conflicting frame rate settings** - Platform config had hardcoded `-r 30` while fps parameter was set to 10
+2. **Insufficient buffer sizes** - Default thread queue size caused frame drops when encoder couldn't keep up
+3. **Premature stream termination** - The `-shortest` flag caused encoding to stop before all buffered frames were processed
+4. **Missing vsync enforcement** - Frames could be skipped instead of encoded
 
 ### Example from Real Recording
 
@@ -43,14 +54,33 @@ if (recordingDuration < MIN_RECORDING_DURATION) {
 ```
 
 ### 2. Improved FFmpeg Encoding Parameters
+
+**Removed conflicting settings:**
 ```javascript
-'-quality', 'good',     // Changed from 'realtime' for better finalization
-'-cpu-used', '4',       // Balanced encoding speed
-'-deadline', 'good',    // Good quality mode
-'-g', fps.toString(),   // Keyframe every second (was 2 seconds)
+// REMOVED from platform config:
+'-r', '30'  // This conflicted with fps parameter
+
+// REMOVED from output args:
+'-shortest'  // This caused premature termination
+```
+
+**Added buffer and sync enforcement:**
+```javascript
+// Input buffering (before -i):
+'-thread_queue_size', '512',    // Large input buffer prevents drops
+'-probesize', '50M',            // Better stream detection
+
+// Output sync enforcement:
+'-vsync', '1',                   // Constant frame rate - encode every frame
+'-max_muxing_queue_size', '9999' // Large muxing queue prevents drops
+
+// Existing improvements:
+'-quality', 'good',              // Changed from 'realtime' for better finalization
+'-cpu-used', '4',                // Balanced encoding speed
+'-deadline', 'good',             // Good quality mode
+'-g', fps.toString(),            // Keyframe every second (was 2 seconds)
 '-force_key_frames', `expr:gte(t,n_forced*1)`, // Force keyframes every 1s
-'-shortest',            // Properly finalize when shortest stream ends
-'-fflags', '+genpts',   // Generate presentation timestamps
+'-fflags', '+genpts',            // Generate presentation timestamps
 '-avoid_negative_ts', 'make_zero' // Prevent timestamp issues
 ```
 

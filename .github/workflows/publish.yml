@@ -29,15 +29,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump version
-        run: |
-          npm version prerelease --preid=beta -m "chore: bump version to %s [skip ci]"
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Push changes
+      - name: Bump version
+        id: bump
         run: |
-          git push --follow-tags
+          # Get current version from npm (latest beta)
+          CURRENT_NPM_VERSION=$(npm view dashcam dist-tags.beta 2>/dev/null || echo "1.0.1-beta.0")
+          echo "Current npm beta version: $CURRENT_NPM_VERSION"
+          
+          # Update package.json to match npm version before bumping
+          npm version $CURRENT_NPM_VERSION --no-git-tag-version --allow-same-version
+          
+          # Now bump to next prerelease
+          NEW_VERSION=$(npm version prerelease --preid=beta -m "chore: bump version to %s [skip ci]")
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
 
       - name: Publish to npm
         run: npm publish --access public --tag beta
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push changes
+        run: |
+          git push --follow-tags
+        # Only push if publish succeeded
