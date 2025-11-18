@@ -32,6 +32,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Commit dependency updates
+        run: |
+          # Commit any changes from npm ci (like package-lock.json updates)
+          git add -A
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: update dependencies [skip ci]"
+          fi
+
       - name: Bump version
         id: bump
         run: |
@@ -39,10 +47,16 @@ jobs:
           CURRENT_NPM_VERSION=$(npm view dashcam dist-tags.beta 2>/dev/null || echo "1.0.1-beta.0")
           echo "Current npm beta version: $CURRENT_NPM_VERSION"
           
-          # Update package.json to match npm version before bumping
+          # Update package.json to match npm version before bumping (no git changes)
           npm version $CURRENT_NPM_VERSION --no-git-tag-version --allow-same-version
           
-          # Now bump to next prerelease
+          # Commit the sync if package.json changed
+          git add package.json
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: sync version with npm registry [skip ci]"
+          fi
+          
+          # Now bump to next prerelease (this will create commit + tag)
           NEW_VERSION=$(npm version prerelease --preid=beta -m "chore: bump version to %s [skip ci]")
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
