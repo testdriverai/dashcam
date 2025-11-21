@@ -136,7 +136,10 @@ async function recordingAction(options, command) {
       log('Use "dashcam status" to check progress');
       log('Use "dashcam stop" to stop recording and upload');
       
-      // Process can exit now - background process is detached
+      // Close stdout/stderr and exit immediately to prevent blocking
+      // when called from automation scripts with piped output
+      process.stdout.end();
+      process.stderr.end();
       process.exit(0);
       
     } catch (error) {
