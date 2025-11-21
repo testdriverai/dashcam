@@ -419,61 +419,56 @@ program
 
         console.log('Recording stopped successfully');
         
-        // Wait for upload to complete (background process handles this)
-        logger.debug('Waiting for background upload to complete...');
-        console.log('⏳ Uploading recording...');
+        // Wait for background process to finish recording and write result
+        logger.debug('Waiting for background process to finish recording...');
         
-        // Wait up to 2 minutes for upload result to appear
-        const maxWaitForUpload = 120000; // 2 minutes
-        const startWaitForUpload = Date.now();
-        let uploadResult = null;
+        // Wait up to 30 seconds for recording result to appear
+        const maxWaitForRecording = 30000;
+        const startWaitForRecording = Date.now();
+        let recordingResult = null;
         
-        while (!uploadResult && (Date.now() - startWaitForUpload) < maxWaitForUpload) {
-          uploadResult = processManager.readUploadResult();
-          if (!uploadResult) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Check every second
+        while (!recordingResult && (Date.now() - startWaitForRecording) < maxWaitForRecording) {
+          const resultData = processManager.readUploadResult();
+          if (resultData && resultData.recordingStopped) {
+            recordingResult = resultData;
+            logger.debug('Recording result received from background process');
+            break;
           }
+          await new Promise(resolve => setTimeout(resolve, 500)); // Check every 500ms
         }
         
-        logger.debug('Upload result read attempt', { found: !!uploadResult, shareLink: uploadResult?.shareLink });
-        
-        if (uploadResult && uploadResult.shareLink) {
-          console.log('📹 Watch your recording:', uploadResult.shareLink);
-          // Clean up the result file now that we've read it
-          processManager.cleanup();
-          process.exit(0);
+        if (!recordingResult || !recordingResult.outputPath) {
+          logger.error('Failed to get recording result from background process');
+          console.log('⚠️  Failed to get recording from background process');
+          process.exit(1);
         }
         
-        // Check if files still exist - if not, background process already uploaded
-        const filesExist = fs.existsSync(result.outputPath) && 
-                          (!result.gifPath || fs.existsSync(result.gifPath)) && 
-                          (!result.snapshotPath || fs.existsSync(result.snapshotPath));
-        
-        if (!filesExist) {
-          console.log('✅ Recording uploaded by background process');
-          logger.info('Files were cleaned up by background process');
-          process.exit(0);
-        }
-        
-        // Always attempt to upload - let upload function find project if needed
+        // Now upload the recording ourselves
+        logger.info('Uploading recording from stop command', { outputPath: recordingResult.outputPath });
         console.log('Uploading recording...');
+        
         try {
-          const uploadResult = await upload(result.outputPath, {
-            title: activeStatus?.options?.title,
+          const uploadResult = await upload(recordingResult.outputPath, {
+            title: activeStatus?.options?.title || 'Dashcam Recording',
             description: activeStatus?.options?.description,
-            project: activeStatus?.options?.project, // May be undefined, that's ok
-            duration: result.duration,
-            clientStartDate: result.clientStartDate,
-            apps: result.apps,
-            icons: result.icons,
-            gifPath: result.gifPath,
-            snapshotPath: result.snapshotPath
+            project: activeStatus?.options?.project,
+            duration: recordingResult.duration,
+            clientStartDate: recordingResult.clientStartDate,
+            apps: recordingResult.apps,
+            logs: recordingResult.logs,
+            gifPath: recordingResult.gifPath,
+            snapshotPath: recordingResult.snapshotPath
           });
           
           console.log('📹 Watch your recording:', uploadResult.shareLink);
+          
+          // Clean up result file
+          processManager.cleanup();
+          process.exit(0);
         } catch (uploadError) {
           console.error('Upload failed:', uploadError.message);
-          console.log('Recording saved locally:', result.outputPath);
+          console.log('Recording saved locally:', recordingResult.outputPath);
+          process.exit(1);
         }
       } catch (error) {
         console.error('Failed to stop recording:', error.message);

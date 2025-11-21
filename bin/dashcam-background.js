@@ -15,6 +15,7 @@ import os from 'os';
 const PROCESS_DIR = path.join(os.homedir(), '.dashcam-cli');
 const STATUS_FILE = path.join(PROCESS_DIR, 'status.json');
 const RESULT_FILE = path.join(PROCESS_DIR, 'upload-result.json');
+const STOP_SIGNAL_FILE = path.join(PROCESS_DIR, 'stop-signal.json');
 
 // Parse options from command line argument
 const optionsJson = process.argv[2];
@@ -96,79 +97,74 @@ async function runBackgroundRecording() {
       startTime: recordingResult.startTime 
     });
 
-    // Set up signal handlers for graceful shutdown
-    const handleShutdown = async (signal) => {
-      if (isShuttingDown) {
-        logger.info('Shutdown already in progress...');
-        return;
-      }
-      isShuttingDown = true;
-      
-      logger.info(`Received ${signal} signal, stopping background recording...`, { pid: process.pid });
-      
+    // Poll for stop signal file instead of relying on system signals
+    // This works reliably across all platforms including Windows
+    logger.info('Background recording is now running. Polling for stop signal...');
+    
+    const pollInterval = 1000; // Check every second
+    
+    while (true) {
       try {
-        // Stop the recording
-        logger.info('Calling stopRecording...');
-        const stopResult = await stopRecording();
-        
-        if (stopResult) {
-          logger.info('Recording stopped successfully', { 
-            outputPath: stopResult.outputPath,
-            duration: stopResult.duration 
+        if (fs.existsSync(STOP_SIGNAL_FILE)) {
+          if (isShuttingDown) {
+            logger.info('Shutdown already in progress...');
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            continue;
+          }
+          isShuttingDown = true;
+          
+          logger.info('Stop signal file detected, initiating graceful shutdown');
+          
+          // Read and log the signal
+          try {
+            const signalData = JSON.parse(fs.readFileSync(STOP_SIGNAL_FILE, 'utf8'));
+            logger.info('Stop signal received', signalData);
+          } catch (e) {
+            logger.warn('Could not parse stop signal file');
+          }
+          
+          // Stop the recording
+          logger.info('Calling stopRecording...');
+          const stopResult = await stopRecording();
+          
+          if (stopResult) {
+            logger.info('Recording stopped successfully', { 
+              outputPath: stopResult.outputPath,
+              duration: stopResult.duration 
+            });
+            
+            // Write the recording result so stop command can upload it
+            logger.info('Writing recording result for stop command to upload');
+            writeUploadResult({
+              outputPath: stopResult.outputPath,
+              duration: stopResult.duration,
+              clientStartDate: stopResult.clientStartDate,
+              apps: stopResult.apps,
+              logs: stopResult.logs,
+              gifPath: stopResult.gifPath,
+              snapshotPath: stopResult.snapshotPath,
+              recordingStopped: true
+            });
+            logger.info('Recording result written successfully');
+          }
+          
+          // Update status to indicate recording stopped
+          writeStatus({
+            isRecording: false,
+            completedTime: Date.now(),
+            pid: process.pid
           });
           
-          // Upload the recording
-          logger.info('Starting upload...');
-          const uploadResult = await upload(stopResult.outputPath, {
-            title: options.title || 'Dashcam Recording',
-            description: options.description || 'Recorded with Dashcam CLI',
-            project: options.project || options.k,
-            duration: stopResult.duration,
-            clientStartDate: stopResult.clientStartDate,
-            apps: stopResult.apps,
-            logs: stopResult.logs,
-            gifPath: stopResult.gifPath,
-            snapshotPath: stopResult.snapshotPath
-          });
-          
-          logger.info('Upload complete', { shareLink: uploadResult.shareLink });
-          
-          // Write upload result for stop command to read
-          logger.info('About to write upload result...');
-          writeUploadResult({
-            shareLink: uploadResult.shareLink,
-            replayId: uploadResult.replay?.id
-          });
-          logger.info('Upload result written successfully');
+          logger.info('Background process exiting successfully');
+          process.exit(0);
         }
-        
-        // Update status to indicate recording stopped
-        writeStatus({
-          isRecording: false,
-          completedTime: Date.now(),
-          pid: process.pid
-        });
-        
-        logger.info('Background process exiting successfully');
-        process.exit(0);
       } catch (error) {
-        logger.error('Error during shutdown:', { error: error.message, stack: error.stack });
-        process.exit(1);
+        logger.error('Error during stop signal handling', { error: error.message, stack: error.stack });
       }
-    };
-    
-    process.on('SIGINT', () => {
-      logger.info('SIGINT handler triggered');
-      handleShutdown('SIGINT');
-    });
-    process.on('SIGTERM', () => {
-      logger.info('SIGTERM handler triggered');
-      handleShutdown('SIGTERM');
-    });
-    
-    // Keep the process alive
-    logger.info('Background recording is now running. Waiting for stop signal...');
-    await new Promise(() => {}); // Wait indefinitely for signals
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
     
   } catch (error) {
     logger.error('Background recording failed:', error);
