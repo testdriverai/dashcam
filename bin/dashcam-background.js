@@ -55,8 +55,13 @@ function writeUploadResult(result) {
       timestamp: Date.now()
     }, null, 2));
     logger.info('Successfully wrote upload result to file');
+    // Verify the file was written
+    if (fs.existsSync(RESULT_FILE)) {
+      const content = fs.readFileSync(RESULT_FILE, 'utf8');
+      logger.info('Verified upload result file exists and contains', { content: content.substring(0, 100) });
+    }
   } catch (error) {
-    logger.error('Failed to write upload result file', { error });
+    logger.error('Failed to write upload result file', { error: error.message, stack: error.stack });
   }
 }
 
@@ -99,10 +104,11 @@ async function runBackgroundRecording() {
       }
       isShuttingDown = true;
       
-      logger.info(`Received ${signal}, stopping background recording...`);
+      logger.info(`Received ${signal} signal, stopping background recording...`, { pid: process.pid });
       
       try {
         // Stop the recording
+        logger.info('Calling stopRecording...');
         const stopResult = await stopRecording();
         
         if (stopResult) {
@@ -128,10 +134,12 @@ async function runBackgroundRecording() {
           logger.info('Upload complete', { shareLink: uploadResult.shareLink });
           
           // Write upload result for stop command to read
+          logger.info('About to write upload result...');
           writeUploadResult({
             shareLink: uploadResult.shareLink,
             replayId: uploadResult.replay?.id
           });
+          logger.info('Upload result written successfully');
         }
         
         // Update status to indicate recording stopped
@@ -144,13 +152,19 @@ async function runBackgroundRecording() {
         logger.info('Background process exiting successfully');
         process.exit(0);
       } catch (error) {
-        logger.error('Error during shutdown:', error);
+        logger.error('Error during shutdown:', { error: error.message, stack: error.stack });
         process.exit(1);
       }
     };
     
-    process.on('SIGINT', () => handleShutdown('SIGINT'));
-    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+    process.on('SIGINT', () => {
+      logger.info('SIGINT handler triggered');
+      handleShutdown('SIGINT');
+    });
+    process.on('SIGTERM', () => {
+      logger.info('SIGTERM handler triggered');
+      handleShutdown('SIGTERM');
+    });
     
     // Keep the process alive
     logger.info('Background recording is now running. Waiting for stop signal...');
