@@ -99,21 +99,17 @@ async function recordingAction(options, command) {
       process.exit(1);
     }
 
-    // Check for piped input (description from stdin) if description option not set
-    let description = options.description;
-    if (!description && !process.stdin.isTTY) {
-      const chunks = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-      }
-      description = Buffer.concat(chunks).toString('utf-8');
-    }
-
     // Check screen recording permissions (macOS only)
     const { ensurePermissions } = await import('../lib/permissions.js');
-    const hasPermissions = await ensurePermissions();
+    const hasPermissions = await Promise.race([
+      ensurePermissions(),
+      new Promise((resolve) => setTimeout(() => {
+        logger.warn('Permission check timed out, assuming permissions granted');
+        resolve(true);
+      }, 2000))
+    ]);
     if (!hasPermissions) {
-      log('\n⚠️  Cannot start recording without screen recording permission.');
+      log('\nCannot start recording without screen recording permission.');
       process.exit(1);
     }
 
@@ -121,22 +117,34 @@ async function recordingAction(options, command) {
     log('Starting recording in background...');
     
     try {
-      const result = await processManager.startRecording({
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Recording start timed out after 10 seconds')), 10000)
+      );
+
+      // Add timeout to prevent hanging
+      const startRecordingPromise = processManager.startRecording({
         fps: parseInt(options.fps) || 30,
         audio: options.audio,
         output: options.output,
         title: options.title,
-        description: description,
+        description: options.description,
         project: options.project || options.k // Support both -p and -k for project
       });
+      
+      const result = await Promise.race([startRecordingPromise, timeoutPromise]);
 
-      log(`✅ Recording started successfully (PID: ${result.pid})`);
+      log(`Recording started successfully (PID: ${result.pid})`);
       log(`Output: ${result.outputPath}`);
       log('');
       log('Use "dashcam status" to check progress');
       log('Use "dashcam stop" to stop recording and upload');
       
-      process.exit(0);
+      // Force immediate exit - don't wait for event loop to drain
+      // This is necessary when called from scripts/automation
+      setImmediate(() => {
+        process.exit(0);
+      });
     } catch (error) {
       logError('Failed to start recording:', error.message);
       process.exit(1);
@@ -153,21 +161,11 @@ program
   .command('create')
   .description('Create a clip and output the resulting url or markdown. Will launch desktop app for local editing before publishing.')
   .option('-t, --title <string>', 'Title of the replay. Automatically generated if not supplied.')
-  .option('-d, --description [text]', 'Replay markdown body. This may also be piped in: `cat README.md | dashcam create`')
+  .option('-d, --description [text]', 'Replay markdown body')
   .option('--md', 'Returns code for a rich markdown image link.')
   .option('-k, --project <project>', 'Project ID to publish to')
   .action(async (options) => {
     try {
-      // Check for piped input (description from stdin)
-      let description = options.description;
-      if (!description && !process.stdin.isTTY) {
-        const chunks = [];
-        for await (const chunk of process.stdin) {
-          chunks.push(chunk);
-        }
-        description = Buffer.concat(chunks).toString('utf-8');
-      }
-
       if (!processManager.isRecordingActive()) {
         console.log('No active recording to create clip from');
         console.log('Start a recording first with "dashcam record" or "dashcam start"');
@@ -192,7 +190,7 @@ program
       try {
         const uploadResult = await upload(result.outputPath, {
           title: options.title || activeStatus?.options?.title || 'Dashcam Recording',
-          description: description || activeStatus?.options?.description,
+          description: options.description || activeStatus?.options?.description,
           project: options.project || options.k || activeStatus?.options?.project,
           duration: result.duration,
           clientStartDate: result.clientStartDate,
@@ -419,7 +417,7 @@ program
         
         // Wait for upload to complete (background process handles this)
         logger.debug('Waiting for background upload to complete...');
-        console.log('⏳ Uploading recording...');
+        console.log('Uploading recording...');
         
         // Wait up to 2 minutes for upload result to appear
         const maxWaitForUpload = 120000; // 2 minutes
@@ -436,7 +434,7 @@ program
         logger.debug('Upload result read attempt', { found: !!uploadResult, shareLink: uploadResult?.shareLink });
         
         if (uploadResult && uploadResult.shareLink) {
-          console.log('📹 Watch your recording:', uploadResult.shareLink);
+          console.log('Watch your recording:', uploadResult.shareLink);
           // Clean up the result file now that we've read it
           processManager.cleanup();
           process.exit(0);
@@ -448,7 +446,7 @@ program
                           (!result.snapshotPath || fs.existsSync(result.snapshotPath));
         
         if (!filesExist) {
-          console.log('✅ Recording uploaded by background process');
+          console.log('Recording uploaded by background process');
           logger.info('Files were cleaned up by background process');
           process.exit(0);
         }
@@ -468,7 +466,7 @@ program
             snapshotPath: result.snapshotPath
           });
           
-          console.log('📹 Watch your recording:', uploadResult.shareLink);
+          console.log('Watch your recording:', uploadResult.shareLink);
         } catch (uploadError) {
           console.error('Upload failed:', uploadError.message);
           console.log('Recording saved locally:', result.outputPath);
@@ -683,7 +681,7 @@ program
         project: options.project
       });
       
-      console.log('✅ Upload complete! Share link:', uploadResult.shareLink);
+      console.log('> Upload complete! Share link:', uploadResult.shareLink);
       process.exit(0);
       
     } catch (error) {
