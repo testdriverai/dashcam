@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -35,6 +36,18 @@ program
       setVerbose(true);
       logger.info('Verbose logging enabled');
     }
+  });
+
+// Add a dedicated version command that shows more details
+program
+  .command('version')
+  .description('Show version information')
+  .action(() => {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+    console.log(`Dashcam CLI v${packageJson.version}`);
+    console.log(`Node.js ${process.version}`);
+    console.log(`Platform: ${process.platform} ${process.arch}`);
+    process.exit(0);
   });
 
 program
@@ -391,12 +404,49 @@ program
   .command('stop')
   .description('Stop the current recording and wait for upload completion')
   .action(async () => {
+
+    console.log('!!!! Updated Stop')
+
     try {
       // Enable verbose logging for stop command
       setVerbose(true);
       
-      if (!processManager.isRecordingActive()) {
+      logger.debug('Stop command invoked', {
+        platform: process.platform,
+        cwd: process.cwd(),
+        pid: process.pid,
+        processDir: path.join(os.homedir(), '.dashcam-cli')
+      });
+      
+      const isActive = processManager.isRecordingActive();
+      logger.debug('Recording active check result', { isActive });
+      
+      if (!isActive) {
         console.log('No active recording to stop');
+        
+        const statusPath = path.join(os.homedir(), '.dashcam-cli', 'status.json');
+          
+        logger.warn('Stop command called but no active recording found', {
+          platform: process.platform,
+          statusFile: statusPath,
+          statusFileExists: fs.existsSync(statusPath)
+        });
+        
+        // Try to read and display status file for debugging
+        try {
+          if (fs.existsSync(statusPath)) {
+            const statusContent = fs.readFileSync(statusPath, 'utf8');
+            logger.debug('Status file contents', { content: statusContent });
+            console.log('Status file exists but recording not detected as active');
+            console.log('Status file location:', statusPath);
+          } else {
+            console.log('Status file does not exist');
+            console.log('Expected status file location:', statusPath);
+          }
+        } catch (err) {
+          logger.error('Failed to read status file for debugging', { error: err.message });
+        }
+        
         process.exit(0);
       }
 
@@ -404,55 +454,94 @@ program
       const logFile = path.join(process.cwd(), '.dashcam', 'recording.log');
 
       console.log('Stopping recording...');
+      logger.debug('Active status before stop:', activeStatus);
       
       try {
+        logger.debug('Calling stopActiveRecording...');
         const result = await processManager.stopActiveRecording();
         
         if (!result) {
           console.log('Failed to stop recording');
+          logger.error('stopActiveRecording returned null/false');
           process.exit(1);
         }
 
         console.log('Recording stopped successfully');
+        logger.debug('Stop result:', result);
         
         // Wait for upload to complete (background process handles this)
         logger.debug('Waiting for background upload to complete...');
-        console.log('Uploading recording...');
+        console.log('Checking if background process uploaded...');
         
         // Wait up to 2 minutes for upload result to appear
         const maxWaitForUpload = 120000; // 2 minutes
         const startWaitForUpload = Date.now();
         let uploadResult = null;
+        let checkCount = 0;
         
         while (!uploadResult && (Date.now() - startWaitForUpload) < maxWaitForUpload) {
           uploadResult = processManager.readUploadResult();
+          checkCount++;
+          
           if (!uploadResult) {
+            // Log every 10 seconds to show progress
+            if (checkCount % 10 === 0) {
+              const elapsed = Math.round((Date.now() - startWaitForUpload) / 1000);
+              logger.debug(`Still waiting for background upload... (${elapsed}s elapsed)`);
+              console.log(`Waiting for background upload... (${elapsed}s)`);
+            }
             await new Promise(resolve => setTimeout(resolve, 1000)); // Check every second
           }
         }
         
-        logger.debug('Upload result read attempt', { found: !!uploadResult, shareLink: uploadResult?.shareLink });
+        logger.debug('Upload result read attempt', { 
+          found: !!uploadResult, 
+          shareLink: uploadResult?.shareLink,
+          checksPerformed: checkCount,
+          timeElapsed: Math.round((Date.now() - startWaitForUpload) / 1000) + 's'
+        });
         
         if (uploadResult && uploadResult.shareLink) {
           console.log('Watch your recording:', uploadResult.shareLink);
+          logger.info('Background process upload succeeded');
           // Clean up the result file now that we've read it
           processManager.cleanup();
           process.exit(0);
         }
         
+        logger.debug('No upload result from background process, checking files...');
+        
         // Check if files still exist - if not, background process already uploaded
-        const filesExist = fs.existsSync(result.outputPath) && 
-                          (!result.gifPath || fs.existsSync(result.gifPath)) && 
-                          (!result.snapshotPath || fs.existsSync(result.snapshotPath));
+        const videoExists = fs.existsSync(result.outputPath);
+        const gifExists = !result.gifPath || fs.existsSync(result.gifPath);
+        const snapshotExists = !result.snapshotPath || fs.existsSync(result.snapshotPath);
+        
+        logger.debug('File existence check:', {
+          video: videoExists,
+          gif: gifExists,
+          snapshot: snapshotExists,
+          outputPath: result.outputPath,
+          gifPath: result.gifPath,
+          snapshotPath: result.snapshotPath
+        });
+        
+        const filesExist = videoExists && gifExists && snapshotExists;
         
         if (!filesExist) {
-          console.log('Recording uploaded by background process');
-          logger.info('Files were cleaned up by background process');
+          console.log('Recording appears to be uploaded by background process (files deleted)');
+          logger.info('Files were cleaned up by background process, assuming upload succeeded');
           process.exit(0);
         }
         
         // Always attempt to upload - let upload function find project if needed
-        console.log('Uploading recording...');
+        console.log('No upload result found, uploading from foreground process...');
+        logger.debug('Starting foreground upload with metadata:', {
+          title: activeStatus?.options?.title,
+          project: activeStatus?.options?.project,
+          duration: result.duration,
+          outputPath: result.outputPath
+        });
+        
         try {
           const uploadResult = await upload(result.outputPath, {
             title: activeStatus?.options?.title,
@@ -467,12 +556,23 @@ program
           });
           
           console.log('Watch your recording:', uploadResult.shareLink);
+          logger.info('Foreground upload succeeded');
         } catch (uploadError) {
           console.error('Upload failed:', uploadError.message);
+          logger.error('Upload error details:', {
+            message: uploadError.message,
+            stack: uploadError.stack,
+            code: uploadError.code,
+            statusCode: uploadError.response?.statusCode
+          });
           console.log('Recording saved locally:', result.outputPath);
         }
       } catch (error) {
         console.error('Failed to stop recording:', error.message);
+        logger.error('Stop recording error details:', {
+          message: error.message,
+          stack: error.stack
+        });
         process.exit(1);
       }
       

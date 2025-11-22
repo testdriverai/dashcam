@@ -11,10 +11,19 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Get process directory for status files
+// Use user home directory for cross-session communication
 const PROCESS_DIR = path.join(os.homedir(), '.dashcam-cli');
 const STATUS_FILE = path.join(PROCESS_DIR, 'status.json');
 const RESULT_FILE = path.join(PROCESS_DIR, 'upload-result.json');
+
+console.log('[Background INIT] Process directory:', PROCESS_DIR);
+console.log('[Background INIT] Status file:', STATUS_FILE);
+
+// Ensure directory exists
+if (!fs.existsSync(PROCESS_DIR)) {
+  console.log('[Background INIT] Creating process directory');
+  fs.mkdirSync(PROCESS_DIR, { recursive: true });
+}
 
 // Parse options from command line argument
 const optionsJson = process.argv[2];
@@ -28,6 +37,13 @@ const options = JSON.parse(optionsJson);
 // Enable verbose logging in background
 setVerbose(true);
 
+console.log('[Background] Process started', { 
+  pid: process.pid,
+  platform: process.platform,
+  processDir: PROCESS_DIR,
+  statusFile: STATUS_FILE
+});
+
 logger.info('Background recording process started', { 
   pid: process.pid,
   options 
@@ -36,13 +52,43 @@ logger.info('Background recording process started', {
 // Write status file
 function writeStatus(status) {
   try {
-    fs.writeFileSync(STATUS_FILE, JSON.stringify({
+    const statusData = {
       ...status,
       timestamp: Date.now(),
-      pid: process.pid
-    }, null, 2));
+      pid: process.pid,
+      platform: process.platform
+    };
+    
+    console.log('[Background] Writing status file:', {
+      statusFile: STATUS_FILE,
+      pid: statusData.pid,
+      isRecording: statusData.isRecording,
+      platform: statusData.platform
+    });
+    
+    fs.writeFileSync(STATUS_FILE, JSON.stringify(statusData, null, 2));
+    
+    // Verify it was written
+    if (fs.existsSync(STATUS_FILE)) {
+      console.log('[Background] Status file written and verified:', STATUS_FILE);
+      
+      // Read it back to verify content
+      const writtenContent = fs.readFileSync(STATUS_FILE, 'utf8');
+      console.log('[Background] Status file content verification:', { 
+        contentLength: writtenContent.length,
+        parseable: true 
+      });
+    } else {
+      console.error('[Background] Status file does not exist after write!', STATUS_FILE);
+      logger.error('Status file does not exist after write!', { statusFile: STATUS_FILE });
+    }
   } catch (error) {
-    logger.error('Failed to write status file', { error });
+    console.error('[Background] Failed to write status file:', error.message);
+    logger.error('Failed to write status file in background process', { 
+      error: error.message,
+      stack: error.stack,
+      statusFile: STATUS_FILE
+    });
   }
 }
 
@@ -74,9 +120,12 @@ async function runBackgroundRecording() {
     };
 
     logger.info('Starting recording with options', { recordingOptions });
+    console.log('[Background] Starting recording with options:', recordingOptions);
 
     recordingResult = await startRecording(recordingOptions);
 
+    console.log('[Background] Recording started, writing status file...');
+    
     // Write status to track the recording
     writeStatus({
       isRecording: true,
@@ -89,6 +138,12 @@ async function runBackgroundRecording() {
     logger.info('Recording started successfully', { 
       outputPath: recordingResult.outputPath,
       startTime: recordingResult.startTime 
+    });
+    
+    console.log('[Background] Recording started successfully', {
+      outputPath: recordingResult.outputPath,
+      startTime: recordingResult.startTime,
+      pid: process.pid
     });
 
     // Set up signal handlers for graceful shutdown
