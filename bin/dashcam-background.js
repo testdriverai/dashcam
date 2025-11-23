@@ -161,11 +161,39 @@ async function runBackgroundRecording() {
       }
       isShuttingDown = true;
       
-      logger.info(`Received ${signal}, background process will be killed`);
-      console.log('[Background] Received stop signal, process will be terminated...');
+      logger.info(`Received ${signal}, cleaning up child processes`);
+      console.log('[Background] Received stop signal, cleaning up...');
       
-      // Don't try to stop recording here - the main process will handle cleanup
-      // after killing this process. Just exit.
+      // Kill any child processes (ffmpeg, etc.)
+      try {
+        // Get all child processes and kill them
+        const { exec } = await import('child_process');
+        const platform = process.platform;
+        
+        if (platform === 'darwin' || platform === 'linux') {
+          // On Unix, kill the entire process group
+          exec(`pkill -P ${process.pid}`, (error) => {
+            if (error && error.code !== 1) { // code 1 means no processes found
+              logger.warn('Failed to kill child processes', { error: error.message });
+            }
+            logger.info('Child processes killed');
+          });
+        } else if (platform === 'win32') {
+          // On Windows, use taskkill
+          exec(`taskkill /F /T /PID ${process.pid}`, (error) => {
+            if (error) {
+              logger.warn('Failed to kill child processes on Windows', { error: error.message });
+            }
+            logger.info('Child processes killed');
+          });
+        }
+        
+        // Give it a moment to clean up
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        logger.error('Error during cleanup', { error: error.message });
+      }
+      
       logger.info('Background process exiting');
       process.exit(0);
     };
