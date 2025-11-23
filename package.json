@@ -1,6 +1,6 @@
 {
   "name": "dashcam",
-  "version": "1.4.6-beta",
+  "version": "1.4.7-beta",
   "description": "Minimal CLI version of Dashcam desktop app",
   "main": "bin/dashcam.js",
   "bin": {
