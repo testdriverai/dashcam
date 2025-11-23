@@ -115,8 +115,15 @@ sleep 2
 echo ""
 echo "6. Stopping recording and uploading..."
 # Check if recording is still active
+SHARE_LINK=""
 if ./bin/dashcam.js status | grep -q "Recording in progress"; then
-  ./bin/dashcam.js stop
+  # Capture the output to extract the share link
+  STOP_OUTPUT=$(./bin/dashcam.js stop 2>&1)
+  echo "$STOP_OUTPUT"
+  
+  # Extract the share link from the output
+  SHARE_LINK=$(echo "$STOP_OUTPUT" | grep -oE "https?://[^\s]+" | head -1)
+  
   echo "✅ Recording stopped and uploaded"
 else
   echo "⚠️  Recording already completed (this is expected with background mode)"
@@ -133,6 +140,14 @@ echo "======================================"
 echo ""
 echo "📊 Final Status:"
 ./bin/dashcam.js status
+
+# Open the recording in browser if we got a share link
+if [ -n "$SHARE_LINK" ]; then
+  echo ""
+  echo "🌐 Opening recording in browser..."
+  echo "Link: $SHARE_LINK"
+  open "$SHARE_LINK"
+fi
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"

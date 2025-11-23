@@ -734,19 +734,80 @@ program
         try {
           const performanceFile = path.join(recordingDir, 'performance.jsonl');
           if (fs.existsSync(performanceFile)) {
-            const { performanceTracker } = await import('../lib/performanceTracker.js');
-            // Set the file path and call stop to read and process the data
-            performanceTracker.performanceFile = performanceFile;
-            performanceData = performanceTracker.stop();
-            logger.info('Loaded performance data from file', {
-              sampleCount: performanceData?.summary?.sampleCount || 0,
-              file: performanceFile
-            });
+            logger.info('Found performance file, reading data', { file: performanceFile });
+            
+            // Read the file directly and parse samples
+            const fileContent = fs.readFileSync(performanceFile, 'utf8');
+            const lines = fileContent.trim().split('\n').filter(line => line.length > 0);
+            const samples = lines.map(line => JSON.parse(line));
+            
+            logger.info('Parsed performance samples from file', { sampleCount: samples.length });
+            
+            // Calculate summary statistics
+            if (samples.length > 0) {
+              const firstSample = samples[0];
+              const lastSample = samples[samples.length - 1];
+              
+              let totalProcessCPU = 0;
+              let totalProcessMemory = 0;
+              let totalSystemMemoryUsage = 0;
+              let maxProcessCPU = 0;
+              let maxProcessMemory = 0;
+              let maxSystemMemoryUsage = 0;
+              
+              samples.forEach(sample => {
+                const processCPU = sample.process?.cpu || 0;
+                const processMemory = sample.process?.memory || 0;
+                const systemMemoryUsage = sample.system?.memoryUsagePercent || 0;
+                
+                totalProcessCPU += processCPU;
+                totalProcessMemory += processMemory;
+                totalSystemMemoryUsage += systemMemoryUsage;
+                
+                maxProcessCPU = Math.max(maxProcessCPU, processCPU);
+                maxProcessMemory = Math.max(maxProcessMemory, processMemory);
+                maxSystemMemoryUsage = Math.max(maxSystemMemoryUsage, systemMemoryUsage);
+              });
+              
+              const count = samples.length;
+              const finalSample = samples[samples.length - 1];
+              const totalBytesReceived = finalSample.network?.bytesReceived || 0;
+              const totalBytesSent = finalSample.network?.bytesSent || 0;
+              
+              const summary = {
+                durationMs: lastSample.timestamp - firstSample.timestamp,
+                sampleCount: count,
+                monitorInterval: 5000,
+                avgProcessCPU: totalProcessCPU / count,
+                maxProcessCPU,
+                avgProcessMemoryBytes: totalProcessMemory / count,
+                avgProcessMemoryMB: (totalProcessMemory / count) / (1024 * 1024),
+                maxProcessMemoryBytes: maxProcessMemory,
+                maxProcessMemoryMB: maxProcessMemory / (1024 * 1024),
+                avgSystemMemoryUsagePercent: totalSystemMemoryUsage / count,
+                maxSystemMemoryUsagePercent: maxSystemMemoryUsage,
+                totalSystemMemoryBytes: firstSample.system?.totalMemory || 0,
+                totalSystemMemoryGB: (firstSample.system?.totalMemory || 0) / (1024 * 1024 * 1024),
+                totalBytesReceived,
+                totalBytesSent,
+                totalMBReceived: totalBytesReceived / (1024 * 1024),
+                totalMBSent: totalBytesSent / (1024 * 1024)
+              };
+              
+              performanceData = { samples, summary };
+              
+              logger.info('Calculated performance summary', {
+                sampleCount: summary.sampleCount,
+                avgCPU: summary.avgProcessCPU.toFixed(1),
+                maxCPU: summary.maxProcessCPU.toFixed(1),
+                avgMemoryMB: summary.avgProcessMemoryMB.toFixed(1)
+              });
+            }
           } else {
             logger.debug('No performance file found', { expectedPath: performanceFile });
           }
         } catch (error) {
-          logger.warn('Failed to load performance data', { error: error.message });
+          logger.warn('Failed to load performance data', { error: error.message, stack: error.stack });
         }
         
         // The recording is on disk and can be uploaded with full metadata
