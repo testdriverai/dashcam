@@ -622,14 +622,33 @@ program
             const { jsonl } = await import('../lib/utilities/jsonl.js');
             const webLogs = jsonl.read(webLogsFile);
             if (webLogs && webLogs.length > 0) {
+              // Load web config to get patterns
+              const webConfigFile = path.join(process.cwd(), '.dashcam', 'web-config.json');
+              let webPatterns = ['*']; // Default to all patterns
+              if (fs.existsSync(webConfigFile)) {
+                try {
+                  const webConfig = JSON.parse(fs.readFileSync(webConfigFile, 'utf8'));
+                  // Extract all patterns from all enabled configs
+                  webPatterns = Object.values(webConfig)
+                    .filter(config => config.enabled !== false)
+                    .flatMap(config => config.patterns || []);
+                  if (webPatterns.length === 0) {
+                    webPatterns = ['*'];
+                  }
+                } catch (error) {
+                  logger.warn('Failed to load web config for patterns', { error: error.message });
+                }
+              }
+              
               logTrackingResults.push({
                 type: 'web',
                 name: 'Web Logs',
                 fileLocation: webLogsFile,
                 count: webLogs.length,
-                trimmedFileLocation: webLogsFile
+                trimmedFileLocation: webLogsFile,
+                patterns: webPatterns // Include patterns for filtering
               });
-              logger.info('Found web logs', { count: webLogs.length, file: webLogsFile });
+              logger.info('Found web logs', { count: webLogs.length, file: webLogsFile, patterns: webPatterns });
             }
           }
           
@@ -719,6 +738,7 @@ program
   .option('--remove <id>', 'Remove a log tracker by ID')
   .option('--list', 'List all configured log trackers')
   .option('--status', 'Show log tracking status')
+  .option('--view [directory]', 'View logs from recording directory (defaults to most recent in /tmp/dashcam/recordings)')
   .option('--name <name>', 'Name for the log tracker (required with --add)')
   .option('--type <type>', 'Type of tracker: "web" or "file" (required with --add)')
   .option('--pattern <pattern>', 'Pattern to track (can be used multiple times)', (value, previous) => {
@@ -812,6 +832,16 @@ program
         console.log(`  File trackers: ${status.cliFilesCount}`);
         console.log(`  Web trackers: ${status.webAppsCount}`);
         console.log(`  Total recent events: ${status.totalEvents}`);
+        console.log(`  Web daemon running: ${status.webDaemonRunning ? 'Yes' : 'No'}`);
+        
+        // Show WebSocket server info
+        const { server } = await import('../lib/websocket/server.js');
+        if (server.isListening.value) {
+          console.log(`  WebSocket server: Listening on port ${server.port}`);
+          console.log(`  WebSocket clients: ${server._socket?.clients?.size || 0} connected`);
+        } else {
+          console.log(`  WebSocket server: Not listening`);
+        }
         
         if (status.fileTrackerStats.length > 0) {
           console.log('\n  File tracker activity (last minute):');
@@ -819,13 +849,127 @@ program
             console.log(`    ${stat.filePath}: ${stat.count} events`);
           });
         }
+        
+        if (status.webApps.length > 0) {
+          console.log('\n  Web tracker patterns:');
+          status.webApps.forEach(app => {
+            console.log(`    ${app.name}: ${app.patterns.join(', ')}`);
+          });
+        }
+      } else if (options.view !== undefined) {
+        // View logs from a recording directory
+        const { jsonl } = await import('../lib/utilities/jsonl.js');
+        
+        let targetDir = options.view;
+        
+        // If no directory specified, find the most recent recording directory
+        if (!targetDir || targetDir === true) {
+          const recordingsDir = path.join(os.tmpdir(), 'dashcam', 'recordings');
+          if (!fs.existsSync(recordingsDir)) {
+            console.error('No recordings directory found at:', recordingsDir);
+            process.exit(1);
+          }
+          
+          const entries = fs.readdirSync(recordingsDir, { withFileTypes: true });
+          const dirs = entries
+            .filter(entry => entry.isDirectory())
+            .map(entry => ({
+              name: entry.name,
+              path: path.join(recordingsDir, entry.name),
+              mtime: fs.statSync(path.join(recordingsDir, entry.name)).mtime
+            }))
+            .sort((a, b) => b.mtime - a.mtime);
+          
+          if (dirs.length === 0) {
+            console.error('No recording directories found in:', recordingsDir);
+            process.exit(1);
+          }
+          
+          targetDir = dirs[0].path;
+          console.log('Viewing logs from most recent recording:', path.basename(targetDir));
+        } else if (!fs.existsSync(targetDir)) {
+          console.error('Directory does not exist:', targetDir);
+          process.exit(1);
+        }
+        
+        console.log('Directory:', targetDir);
+        console.log('');
+        
+        // Check for CLI logs
+        const cliLogsFile = path.join(targetDir, 'dashcam_logs_cli.jsonl');
+        if (fs.existsSync(cliLogsFile)) {
+          const cliLogs = jsonl.read(cliLogsFile);
+          if (cliLogs && cliLogs.length > 0) {
+            console.log(`📄 CLI Logs (${cliLogs.length} events):`);
+            cliLogs.slice(0, 50).forEach((log, index) => {
+              const timeSeconds = ((log.time || 0) / 1000).toFixed(2);
+              const logFile = log.logFile || 'unknown';
+              const content = (log.line || log.content || '').substring(0, 100);
+              console.log(`  [${timeSeconds}s] ${logFile}: ${content}`);
+            });
+            if (cliLogs.length > 50) {
+              console.log(`  ... and ${cliLogs.length - 50} more events`);
+            }
+            console.log('');
+          }
+        } else {
+          console.log('📄 CLI Logs: No logs found');
+          console.log('');
+        }
+        
+        // Check for web logs
+        const webLogsFile = path.join(targetDir, 'dashcam_logs_web_events.jsonl');
+        if (fs.existsSync(webLogsFile)) {
+          const webLogs = jsonl.read(webLogsFile);
+          if (webLogs && webLogs.length > 0) {
+            console.log(`🌐 Web Logs (${webLogs.length} events):`);
+            
+            // Group by event type
+            const eventTypes = {};
+            webLogs.forEach(log => {
+              eventTypes[log.type] = (eventTypes[log.type] || 0) + 1;
+            });
+            
+            console.log('  Event types:');
+            Object.entries(eventTypes).forEach(([type, count]) => {
+              console.log(`    ${type}: ${count}`);
+            });
+            console.log('');
+            
+            // Show first 20 events
+            console.log('  Recent events:');
+            webLogs.slice(0, 20).forEach((log, index) => {
+              const timeSeconds = ((log.time || 0) / 1000).toFixed(2);
+              const type = log.type || 'unknown';
+              
+              if (type === 'LOG_EVENT' || type === 'LOG_ERROR') {
+                const message = log.payload?.message || '';
+                console.log(`  [${timeSeconds}s] ${type}: ${message.substring(0, 80)}`);
+              } else if (type.startsWith('NETWORK_')) {
+                const url = log.payload?.url || '';
+                console.log(`  [${timeSeconds}s] ${type}: ${url.substring(0, 80)}`);
+              } else {
+                console.log(`  [${timeSeconds}s] ${type}`);
+              }
+            });
+            if (webLogs.length > 20) {
+              console.log(`  ... and ${webLogs.length - 20} more events`);
+            }
+            console.log('');
+          }
+        } else {
+          console.log('🌐 Web Logs: No logs found');
+          console.log('');
+        }
       } else {
-        console.log('Please specify an action: --add, --remove, --list, or --status');
+        console.log('Please specify an action: --add, --remove, --list, --status, or --view');
         console.log('\nExamples:');
         console.log('  dashcam logs --add --name=social --type=web --pattern="*facebook.com*" --pattern="*twitter.com*"');
         console.log('  dashcam logs --add --name=app-logs --type=file --file=/var/log/app.log');
         console.log('  dashcam logs --list');
         console.log('  dashcam logs --status');
+        console.log('  dashcam logs --view                    # View logs from most recent recording');
+        console.log('  dashcam logs --view /path/to/recording # View logs from specific directory');
         console.log('\nUse "dashcam logs --help" for more information');
       }
       

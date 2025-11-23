@@ -21,11 +21,13 @@ echo "✅ Web tracking configured"
 echo ""
 echo "3. Setting up file tracking..."
 TEMP_FILE="/tmp/test-cli-log.txt"
-echo "Using existing test file: $TEMP_FILE"
 
-# File is already tracked from previous tests, check if it exists
-if [ ! -f "$TEMP_FILE" ]; then
-  touch "$TEMP_FILE"
+# Clear the file to start fresh (remove old events from previous test runs)
+> "$TEMP_FILE"
+echo "Created fresh test file: $TEMP_FILE"
+
+# File is already tracked from previous tests, check if it exists in config
+if ! ./bin/dashcam.js logs --list 2>/dev/null | grep -q "$TEMP_FILE"; then
   ./bin/dashcam.js logs --add --name=temp-file-tracking --type=file --file="$TEMP_FILE"
 fi
 echo "✅ File tracking configured"
