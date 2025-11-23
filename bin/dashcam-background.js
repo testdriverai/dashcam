@@ -4,7 +4,7 @@
  * This script runs detached from the parent process to handle long-running recordings
  */
 
-import { startRecording, stopRecording } from '../lib/recorder.js';
+import { startRecording } from '../lib/recorder.js';
 import { logger, setVerbose } from '../lib/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -161,56 +161,13 @@ async function runBackgroundRecording() {
       }
       isShuttingDown = true;
       
-      logger.info(`Received ${signal}, stopping background recording...`);
-      console.log('[Background] Received stop signal, stopping recording...');
+      logger.info(`Received ${signal}, background process will be killed`);
+      console.log('[Background] Received stop signal, process will be terminated...');
       
-      try {
-        // Stop the recording
-        const stopResult = await stopRecording();
-        
-        if (stopResult) {
-          logger.info('Recording stopped successfully', { 
-            outputPath: stopResult.outputPath,
-            duration: stopResult.duration 
-          });
-          console.log('[Background] Recording stopped successfully:', {
-            outputPath: stopResult.outputPath,
-            duration: stopResult.duration
-          });
-          
-          // Write recording result for stop command to upload
-          console.log('[Background] Writing recording result for stop command...');
-          writeRecordingResult({
-            outputPath: stopResult.outputPath,
-            duration: stopResult.duration,
-            clientStartDate: stopResult.clientStartDate,
-            apps: stopResult.apps,
-            logs: stopResult.logs,
-            gifPath: stopResult.gifPath,
-            snapshotPath: stopResult.snapshotPath,
-            // Include options so stop command can use them for upload
-            title: options.title,
-            description: options.description,
-            project: options.project || options.k
-          });
-          console.log('[Background] Recording result written successfully');
-        }
-        
-        // Update status to indicate recording stopped
-        writeStatus({
-          isRecording: false,
-          completedTime: Date.now(),
-          pid: process.pid
-        });
-        
-        console.log('[Background] Background process exiting successfully');
-        logger.info('Background process exiting successfully');
-        process.exit(0);
-      } catch (error) {
-        console.error('[Background] Error during shutdown:', error.message);
-        logger.error('Error during shutdown:', error);
-        process.exit(1);
-      }
+      // Don't try to stop recording here - the main process will handle cleanup
+      // after killing this process. Just exit.
+      logger.info('Background process exiting');
+      process.exit(0);
     };
     
     // Register signal handlers

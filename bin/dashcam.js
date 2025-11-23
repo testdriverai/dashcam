@@ -137,7 +137,7 @@ async function recordingAction(options, command) {
 
       // Add timeout to prevent hanging
       const startRecordingPromise = processManager.startRecording({
-        fps: parseInt(options.fps) || 30,
+        fps: parseInt(options.fps) || 10,
         audio: options.audio,
         output: options.output,
         title: options.title,
@@ -241,7 +241,7 @@ program
   .command('record')
   .description('Start a recording terminal to be included in your dashcam video recording')
   .option('-a, --audio', 'Include audio in the recording')
-  .option('-f, --fps <fps>', 'Frames per second (default: 30)', '30')
+  .option('-f, --fps <fps>', 'Frames per second (default: 10)', '10')
   .option('-o, --output <path>', 'Custom output path')
   .option('-t, --title <title>', 'Title for the recording')
   .option('-d, --description <description>', 'Description for the recording (supports markdown)')
@@ -484,8 +484,35 @@ program
           logger.error('Failed to read temp file info', { error });
         }
         
-        const tempFile = tempFileInfo?.tempFile || result.outputPath.replace('.webm', '-temp.webm');
+        // Fallback: look for temp files in the same directory
+        let tempFile = tempFileInfo?.tempFile;
+        if (!tempFile || !fs.existsSync(tempFile)) {
+          // Try to find any temp-*.webm file in the output directory
+          const outputDir = path.dirname(result.outputPath);
+          if (fs.existsSync(outputDir)) {
+            const files = fs.readdirSync(outputDir);
+            const tempFiles = files.filter(f => f.startsWith('temp-') && f.endsWith('.webm'));
+            if (tempFiles.length > 0) {
+              // Use the most recent temp file
+              tempFiles.sort().reverse();
+              tempFile = path.join(outputDir, tempFiles[0]);
+              logger.info('Found temp file in output directory', { tempFile });
+            }
+          }
+        }
+        
         const outputPath = result.outputPath;
+        
+        // Verify we have a temp file to work with
+        if (!tempFile) {
+          console.error('No temp file found for recording');
+          logger.error('Temp file missing', { 
+            tempFileInfo, 
+            outputDir: path.dirname(result.outputPath),
+            expectedPattern: 'temp-*.webm'
+          });
+          process.exit(1);
+        }
         
         // Fix the video with FFmpeg (handle incomplete recordings)
         logger.info('Fixing video with FFmpeg', { tempFile, outputPath });
@@ -502,14 +529,129 @@ program
           logger.warn('Temp file not found, using output path directly', { tempFile });
         }
         
-        // We killed the process, so we don't have apps/logs data
-        // The recording is still on disk and can be uploaded without metadata
+        // Verify the output file exists before proceeding
+        if (!fs.existsSync(outputPath)) {
+          console.error('Recording file not found after processing');
+          logger.error('Output file missing', { outputPath, tempFile, tempFileExists: fs.existsSync(tempFile) });
+          process.exit(1);
+        }
+        
+        logger.info('Output file ready for upload', { 
+          outputPath, 
+          size: fs.statSync(outputPath).size 
+        });
+        
+        // Generate paths for additional assets
+        const basePath = outputPath.substring(0, outputPath.lastIndexOf('.'));
+        const gifPath = `${basePath}.gif`;
+        const snapshotPath = `${basePath}.png`;
+        
+        // Create GIF and snapshot (non-blocking, don't fail if these fail)
+        console.log('Creating preview assets...');
+        const { createGif, createSnapshot } = await import('../lib/ffmpeg.js');
+        
+        // Add timeout wrapper to prevent hanging on large files
+        const withTimeout = (promise, timeoutMs, name) => {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs)
+            )
+          ]);
+        };
+        
+        try {
+          await Promise.all([
+            withTimeout(
+              createGif(outputPath, gifPath),
+              30000, // 30 second timeout
+              'GIF creation'
+            ).catch(err => {
+              logger.warn('Failed to create GIF', { error: err.message });
+            }),
+            withTimeout(
+              createSnapshot(outputPath, snapshotPath, 0),
+              10000, // 10 second timeout
+              'Snapshot creation'
+            ).catch(err => {
+              logger.warn('Failed to create snapshot', { error: err.message });
+            })
+          ]);
+          logger.debug('Preview assets created successfully');
+        } catch (error) {
+          logger.warn('Failed to create preview assets', { error: error.message });
+        }
+        
+        // Collect logs and app tracking data
+        console.log('Collecting tracking data...');
+        
+        // Get app tracking data
+        const { applicationTracker } = await import('../lib/applicationTracker.js');
+        const appTrackingResults = applicationTracker.stop();
+        logger.info('Collected app tracking results', {
+          apps: appTrackingResults.apps?.length || 0,
+          icons: appTrackingResults.icons?.length || 0,
+          events: appTrackingResults.events?.length || 0
+        });
+        
+        // Get log tracking data - read directly from files since background process was killed
+        const recordingDir = path.dirname(outputPath);
+        let logTrackingResults = [];
+        
+        try {
+          // Check for CLI logs file
+          const cliLogsFile = path.join(recordingDir, 'dashcam_logs_cli.jsonl');
+          if (fs.existsSync(cliLogsFile)) {
+            const { jsonl } = await import('../lib/utilities/jsonl.js');
+            const cliLogs = jsonl.read(cliLogsFile);
+            if (cliLogs && cliLogs.length > 0) {
+              logTrackingResults.push({
+                type: 'cli',
+                name: 'CLI Logs',
+                fileLocation: cliLogsFile,
+                count: cliLogs.length,
+                trimmedFileLocation: cliLogsFile
+              });
+              logger.info('Found CLI logs', { count: cliLogs.length, file: cliLogsFile });
+            }
+          }
+          
+          // Check for web logs file
+          const webLogsFile = path.join(recordingDir, 'dashcam_logs_web_events.jsonl');
+          if (fs.existsSync(webLogsFile)) {
+            const { jsonl } = await import('../lib/utilities/jsonl.js');
+            const webLogs = jsonl.read(webLogsFile);
+            if (webLogs && webLogs.length > 0) {
+              logTrackingResults.push({
+                type: 'web',
+                name: 'Web Logs',
+                fileLocation: webLogsFile,
+                count: webLogs.length,
+                trimmedFileLocation: webLogsFile
+              });
+              logger.info('Found web logs', { count: webLogs.length, file: webLogsFile });
+            }
+          }
+          
+          logger.info('Collected log tracking results', { 
+            trackers: logTrackingResults.length,
+            totalEvents: logTrackingResults.reduce((sum, result) => sum + result.count, 0)
+          });
+        } catch (error) {
+          logger.warn('Failed to collect log tracking results', { error: error.message });
+        }
+        
+        // The recording is on disk and can be uploaded with full metadata
         const recordingResult = {
           outputPath,
+          gifPath,
+          snapshotPath,
           duration: result.duration,
+          fileSize: fs.statSync(outputPath).size,
           clientStartDate: activeStatus.startTime,
-          apps: [],
-          logs: [],
+          apps: appTrackingResults.apps,
+          icons: appTrackingResults.icons,
+          logs: logTrackingResults,
           title: activeStatus?.options?.title,
           description: activeStatus?.options?.description,
           project: activeStatus?.options?.project
@@ -532,6 +674,7 @@ program
             duration: recordingResult.duration,
             clientStartDate: recordingResult.clientStartDate,
             apps: recordingResult.apps,
+            icons: recordingResult.icons,
             logs: recordingResult.logs,
             gifPath: recordingResult.gifPath,
             snapshotPath: recordingResult.snapshotPath
@@ -749,7 +892,7 @@ program
       if (!targetFile) {
         console.error('Please provide a file path or use --recover option');
         console.log('Examples:');
-        console.log('  dashcam upload /path/to/recording.webm');
+        console.log('  dashcam upload /path/to/recording.mp4');
         console.log('  dashcam upload --recover');
         process.exit(1);
       }
