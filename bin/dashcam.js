@@ -531,7 +531,7 @@ program
             logger.info('Loaded recording result from background process', {
               outputPath: backgroundResult.outputPath,
               duration: backgroundResult.duration,
-              performanceSamples: backgroundResult.performance?.summary?.sampleCount || 0
+              hasPerformanceFile: !!backgroundResult.performanceFile
             });
           } catch (error) {
             logger.warn('Failed to read background recording result', { error: error.message });
@@ -730,20 +730,23 @@ program
         }
         
         // Read performance data from file if available
-        let performanceData = null;
+        // Instead of embedding all samples, we'll just pass the file path for S3 upload
+        let performanceFile = null;
+        let performanceSummary = null;
         try {
-          const performanceFile = path.join(recordingDir, 'performance.jsonl');
-          if (fs.existsSync(performanceFile)) {
-            logger.info('Found performance file, reading data', { file: performanceFile });
+          const perfFile = path.join(recordingDir, 'performance.jsonl');
+          if (fs.existsSync(perfFile)) {
+            logger.info('Found performance file, will upload to S3', { file: perfFile });
+            performanceFile = perfFile;
             
-            // Read the file directly and parse samples
-            const fileContent = fs.readFileSync(performanceFile, 'utf8');
+            // Read samples just to calculate summary for logging (not for DB storage)
+            const fileContent = fs.readFileSync(perfFile, 'utf8');
             const lines = fileContent.trim().split('\n').filter(line => line.length > 0);
             const samples = lines.map(line => JSON.parse(line));
             
             logger.info('Parsed performance samples from file', { sampleCount: samples.length });
             
-            // Calculate summary statistics
+            // Calculate summary statistics just for logging
             if (samples.length > 0) {
               const firstSample = samples[0];
               const lastSample = samples[samples.length - 1];
@@ -770,44 +773,28 @@ program
               });
               
               const count = samples.length;
-              const finalSample = samples[samples.length - 1];
-              const totalBytesReceived = finalSample.network?.bytesReceived || 0;
-              const totalBytesSent = finalSample.network?.bytesSent || 0;
               
-              const summary = {
+              performanceSummary = {
                 durationMs: lastSample.timestamp - firstSample.timestamp,
                 sampleCount: count,
-                monitorInterval: 5000,
                 avgProcessCPU: totalProcessCPU / count,
                 maxProcessCPU,
-                avgProcessMemoryBytes: totalProcessMemory / count,
                 avgProcessMemoryMB: (totalProcessMemory / count) / (1024 * 1024),
-                maxProcessMemoryBytes: maxProcessMemory,
-                maxProcessMemoryMB: maxProcessMemory / (1024 * 1024),
-                avgSystemMemoryUsagePercent: totalSystemMemoryUsage / count,
-                maxSystemMemoryUsagePercent: maxSystemMemoryUsage,
-                totalSystemMemoryBytes: firstSample.system?.totalMemory || 0,
-                totalSystemMemoryGB: (firstSample.system?.totalMemory || 0) / (1024 * 1024 * 1024),
-                totalBytesReceived,
-                totalBytesSent,
-                totalMBReceived: totalBytesReceived / (1024 * 1024),
-                totalMBSent: totalBytesSent / (1024 * 1024)
+                maxProcessMemoryMB: maxProcessMemory / (1024 * 1024)
               };
               
-              performanceData = { samples, summary };
-              
-              logger.info('Calculated performance summary', {
-                sampleCount: summary.sampleCount,
-                avgCPU: summary.avgProcessCPU.toFixed(1),
-                maxCPU: summary.maxProcessCPU.toFixed(1),
-                avgMemoryMB: summary.avgProcessMemoryMB.toFixed(1)
+              logger.info('Calculated performance summary for logging', {
+                sampleCount: performanceSummary.sampleCount,
+                avgCPU: performanceSummary.avgProcessCPU.toFixed(1),
+                maxCPU: performanceSummary.maxProcessCPU.toFixed(1),
+                avgMemoryMB: performanceSummary.avgProcessMemoryMB.toFixed(1)
               });
             }
           } else {
-            logger.debug('No performance file found', { expectedPath: performanceFile });
+            logger.debug('No performance file found', { expectedPath: perfFile });
           }
         } catch (error) {
-          logger.warn('Failed to load performance data', { error: error.message, stack: error.stack });
+          logger.warn('Failed to process performance data', { error: error.message, stack: error.stack });
         }
         
         // The recording is on disk and can be uploaded with full metadata
@@ -821,17 +808,17 @@ program
           apps: backgroundResult?.apps || appTrackingResults.apps,
           icons: backgroundResult?.icons || appTrackingResults.icons,
           logs: backgroundResult?.logs || logTrackingResults,
-          performance: performanceData || backgroundResult?.performance || null, // Prefer file data, fallback to background result
+          performanceFile: performanceFile || backgroundResult?.performanceFile || null, // Pass file path for S3 upload
           title: activeStatus?.options?.title,
           description: activeStatus?.options?.description,
           project: activeStatus?.options?.project
         };
         
         logger.info('Recording result prepared for upload', {
-          hasPerformanceData: !!recordingResult.performance,
-          performanceSamples: recordingResult.performance?.summary?.sampleCount || 0,
-          avgCPU: recordingResult.performance?.summary?.avgProcessCPU?.toFixed(1) || 'N/A',
-          maxCPU: recordingResult.performance?.summary?.maxProcessCPU?.toFixed(1) || 'N/A'
+          hasPerformanceFile: !!recordingResult.performanceFile,
+          performanceSamples: performanceSummary?.sampleCount || 0,
+          avgCPU: performanceSummary?.avgProcessCPU?.toFixed(1) || 'N/A',
+          maxCPU: performanceSummary?.maxProcessCPU?.toFixed(1) || 'N/A'
         });
         
         if (!recordingResult || !recordingResult.outputPath) {
@@ -853,7 +840,7 @@ program
             apps: recordingResult.apps,
             icons: recordingResult.icons,
             logs: recordingResult.logs,
-            performance: recordingResult.performance, // Include performance data
+            performanceFile: recordingResult.performanceFile, // Path to JSONL file for S3 upload
             gifPath: recordingResult.gifPath,
             snapshotPath: recordingResult.snapshotPath
           });
